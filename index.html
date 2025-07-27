@@ -1,0 +1,3097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fortress Idle</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #2d3748;
+            color: #e2e8f0;
+            overflow: hidden; /* Prevent scrollbars */
+        }
+
+        #game-container {
+            display: flex;
+            width: 95vw; /* Responsive width */
+            max-width: 1600px; /* Increased max width */
+            height: 90vh; /* Responsive height */
+            max-height: 900px; /* Increased max height */
+            background-color: #4a5568;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            flex-direction: row; /* Default for desktop */
+        }
+
+        #game-area {
+            position: relative;
+            flex-grow: 1;
+            background-color: #364052;
+            overflow: hidden;
+            border-radius: 12px 0 0 12px;
+            display: flex; /* Use flex to center canvas */
+            justify-content: center;
+            align-items: center;
+        }
+
+        #game-canvas {
+            display: block; /* Remove extra space below canvas */
+            background-color: #1a202c; /* Game background */
+            border-radius: 8px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            /* Canvas dimensions will be set by JS */
+        }
+
+        #controls {
+            width: 350px; /* Wider control panel */
+            background-color: #2c313a;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border-left: 1px solid #24272e;
+            overflow-y: auto; /* Enable scrolling for controls */
+            border-radius: 0 12px 12px 0;
+        }
+
+        h1, h2, h3 {
+            color: #edf2f7;
+            margin-top: 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #4a5568;
+            padding-bottom: 5px;
+        }
+
+        .info-panel, .section-box {
+            background-color: #2d3748;
+            padding: 12px 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .info-panel p, .section-box p, .section-box div {
+            margin: 5px 0;
+            font-size: 0.95em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .info-panel span:last-child, .section-box span:last-child {
+            font-weight: bold;
+            color: #63b3ed;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        /* Universal button styling */
+        button {
+            font-family: Arial, sans-serif; /* Set font to Arial */
+            background-color: #4299e1; /* Blue color */
+            color: white; /* White text */
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #3182ce;
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background-color: #718096;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .controls-row button {
+            flex-grow: 1;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 5px; /* Smaller gap for multiple buttons in a row */
+            flex-wrap: wrap; /* Allow buttons to wrap to next line if needed */
+        }
+
+        .button-group button {
+            flex: 1 1 calc(33.33% - 10px); /* Three buttons per row with gap */
+            min-width: 90px; /* Ensure a minimum width */
+            box-sizing: border-box; /* Include padding and border in the width */
+        }
+
+        .tab-buttons {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #4a5568;
+        }
+
+        .tab-buttons button {
+            flex: 1;
+            padding: 10px;
+            background-color: #4a5568; /* Different background for tab buttons */
+            color: #e2e8f0;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .tab-buttons button.active {
+            background-color: #2d3748;
+            font-weight: bold;
+            border-bottom: 2px solid #4299e1;
+        }
+
+        .tab-buttons button:hover:not(.active) {
+            background-color: #5a677d;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Main Turret SVG container */
+        #main-turret {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            /* top and left will be set by JS */
+            pointer-events: all; /* Allows hover events */
+            z-index: 10; /* Above canvas elements */
+        }
+
+        #main-turret-svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible; /* Allows shadows/glows to extend outside */
+        }
+
+        #turret-rotating-part {
+            transform-origin: 75px 120px; /* Center of rotation for your SVG components */
+            transition: transform 0.1s linear; /* Smooth rotation */
+        }
+
+        /* SVG styles for turrets (used for the main turret) */
+        .turret-base-circle { fill: #718096; stroke: #2d3748; stroke-width: 2; }
+        .turret-body-rect { fill: #4a5568; stroke: #2d3748; stroke-width: 2; }
+        .turret-gun-rect { fill: #2d3748; stroke: #1a202c; stroke-width: 1; }
+        .turret-detail-circle, .turret-detail-rect { fill: #cbd5e1; }
+        .turret-detail-line { stroke: #a0aec0; stroke-width: 2; }
+
+        /* Message Modal */
+        #message-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #2d3748;
+            margin: auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .modal-content h3 {
+            color: #4299e1;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            font-size: 1.1em;
+            color: #cbd5e1;
+            margin-bottom: 20px;
+        }
+
+        .close-button {
+            background-color: #4299e1;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s ease;
+        }
+
+        .close-button:hover {
+            background-color: #3182ce;
+        }
+
+        /* Progress Bar Styling */
+        .progress-bar-container {
+            width: 100%;
+            background-color: #5a677d; /* Dark gray background */
+            border-radius: 5px;
+            height: 15px; /* Height of the bar */
+            overflow: hidden; /* Ensures inner bar respects border-radius */
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #4299e1; /* Blue fill color */
+            width: 0%; /* Will be set by JS */
+            border-radius: 5px; /* Rounded corners for the fill */
+            transition: width 0.3s ease-in-out; /* Smooth transition for width changes */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #game-container {
+                flex-direction: column; /* Stack vertically on small screens */
+                width: 98vw;
+                height: 98vh;
+            }
+            #game-area {
+                border-radius: 12px 12px 0 0;
+                height: 60%; /* Allocate 60% height for game area */
+            }
+            #controls {
+                width: 100%; /* Full width on mobile */
+                height: 40%; /* Allocate 40% height for controls */
+                border-left: none; /* No vertical border */
+                border-top: 1px solid #24272e; /* Horizontal border */
+                border-radius: 0 0 12px 12px;
+            }
+            .button-group button {
+                flex: 1 1 calc(50% - 10px); /* Two buttons per row on mobile */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="game-area">
+            <canvas id="game-canvas"></canvas>
+            <!-- Main Turret SVG container (still a DOM element for SVG rendering) -->
+            <div id="main-turret">
+                <!-- Content will be replaced by SVG or unbuilt pattern -->
+            </div>
+        </div>
+
+        <div id="controls">
+            <h1>Fortress Idle</h1>
+
+            <div class="info-panel">
+                <p>Resources: <span id="resources-display">0</span></p>
+                <p>Research Points: <span id="research-points-display">0</span></p>
+                <p>Base Health: <span id="base-health-display">100</span> / <span id="base-max-health-display">100</span></p>
+                <p>Wave: <span id="wave-number-display">0</span></p>
+                <p>Total DPS: <span id="total-dps-display">0.0</span></p>
+                <p>Next enemy attack damage: <span id="next-enemy-attack-display">0</span></p>
+                <p>Next enemy health: <span id="next-enemy-hp-display">0</span></p>
+            </div>
+
+            <div class="controls-row">
+                <button id="start-next-wave-btn">Start Next Wave</button>
+            </div>
+            <div class="controls-row">
+                <button id="speed-2x-btn">2x Speed</button>
+                <button id="speed-5x-btn">5x Speed</button>
+                <button id="speed-10x-btn">10x Speed</button>
+            </div>
+            <div class="controls-row">
+                <button id="save-game-btn">Save Game</button>
+                <button id="load-game-btn">Load Game</button>
+                <button id="restart-game-btn">Restart Game</button>
+            </div>
+
+            <div class="tab-buttons">
+                <button id="tab-turrets-btn" class="active">Turrets</button>
+                <button id="tab-upgrades-btn">Upgrades</button>
+                <button id="tab-research-btn">Research</button>
+            </div>
+
+            <div id="turrets-panel" class="tab-content active">
+                <h2>Build Turret</h2>
+                <div class="button-group">
+                    <button id="buy-basic-defender-btn">Basic (<span class="cost">100</span> R)</button>
+                    <button id="buy-sentry-defender-btn">Sentry (<span class="cost">120</span> R)</button>
+                    <button id="buy-rapid-defender-btn">Rapid (<span class="cost">150</span> R)</button>
+                    <button id="buy-heavy-defender-btn">Heavy (<span class="cost">300</span> R)</button>
+                    <button id="buy-laser-defender-btn">Laser (<span class="cost">400</span> R)</button>
+                    <button id="buy-gunner-defender-btn">Gunner (<span class="cost">500</span> R)</button>
+                    <button id="buy-machine-gun-defender-btn">Machine Gun (<span class="cost">600</span> R)</button>
+                    <button id="buy-poison-arrow-defender-btn">Poison Arrow (<span class="cost">700</span> R)</button>
+                    <button id="buy-rocket-launcher-defender-btn">Rocket Launcher (<span class="cost">800</span> R)</button>
+                </div>
+            </div>
+
+            <div id="upgrades-panel" class="tab-content">
+                <h2>Selected Defender</h2>
+                <div class="section-box">
+                    <p id="selected-defender-info">Select a defender to upgrade.</p>
+                    <div>Upgrade Cost: <span id="upgrade-cost-display">N/A</span> (<span id="upgrade-level-display">Lvl N/A</span>)</div>
+                    <button id="upgrade-defender-btn" disabled>Upgrade Defender</button>
+                    <div>Sell Value: <span id="sell-value-display">N/A</span></div>
+                    <button id="sell-defender-btn" disabled>Sell Defender</button>
+                </div>
+
+                <h2>Main Turret</h2>
+                <div class="section-box">
+                    <p>Type: <span id="main-turret-type-display">None</span></p>
+                    <p>Level: <span id="main-turret-level-display">0</span></p>
+                    <p>Damage: <span id="main-turret-dmg-display">N/A</span></p>
+                    <p>Speed (RPS): <span id="main-turret-spd-display">N/A</span></p>
+                    <p>Range: <span id="main-turret-range-display">N/A</span></p>
+                    <div>Upgrade Cost: <span id="main-turret-cost-display">N/A</span></div>
+                    <button id="upgrade-main-turret-btn">Build Main Turret</button>
+                </div>
+
+                <h2>Base Upgrades</h2>
+                <div class="section-box">
+                    <h3>Base Defender Attack</h3>
+                    <p>Damage: <span id="base-dmg-display">1</span> | Speed (RPS): <span id="base-spd-display">1</span> | Range: <span id="base-range-display">100</span></p>
+                    <div class="progress-bar-container"><div id="base-attack-progress" class="progress-bar-fill"></div></div>
+                    <div>Upgrade Cost: <span id="base-upgrade-cost-display">N/A</span> (<span id="base-upgrade-level-display">Lvl N/A</span>)</div>
+                    <button id="upgrade-base-defender-btn">Upgrade Base Attack</button>
+                </div>
+
+                <div class="section-box">
+                    <h3>Base Health</h3>
+                    <p>Max Health: <span id="base-max-health-display-upgrade">100</span></p>
+                    <div class="progress-bar-container"><div id="base-health-progress" class="progress-bar-fill"></div></div>
+                    <div>Upgrade Cost: <span id="base-health-cost-display">N/A</span> (<span id="base-health-level-display">Lvl N/A</span>)</div>
+                    <button id="upgrade-base-health-btn">Upgrade Base Health</button>
+                </div>
+
+                <div class="section-box">
+                    <h3>Base Regeneration</h3>
+                    <p>Regen Rate: <span id="base-regen-rate-display">0.0</span>/s</p>
+                    <div class="progress-bar-container"><div id="base-regen-progress" class="progress-bar-fill"></div></div>
+                    <div>Upgrade Cost: <span id="base-regen-cost-display">N/A</span> (<span id="base-regen-level-display">Lvl N/A</span>)</div>
+                    <button id="upgrade-base-regen-btn">Upgrade Base Regen</button>
+                </div>
+
+                <div class="section-box">
+                    <h3>Resource Multiplier</h3>
+                    <p>Current: x<span id="current-multiplier-display">1.0</span></p>
+                    <div class="progress-bar-container"><div id="multiplier-progress" class="progress-bar-fill"></div></div>
+                    <div>Upgrade Cost: <span id="multiplier-cost-display">N/A</span> (<span id="multiplier-level-display">Lvl N/A</span>)</div>
+                    <button id="upgrade-resource-multiplier-btn">Upgrade Multiplier</button>
+                </div>
+            </div>
+
+            <div id="research-panel" class="tab-content">
+                <h2>Research</h2>
+                <div class="section-box">
+                    <h3>Unlock Turret Slots</h3>
+                    <p>Current Slots: <span id="current-slots-display">10</span></p>
+                    <div>Cost: <span id="unlock-slots-cost-display">N/A</span> (<span id="unlock-slots-level-display">Lvl N/A</span>)</div>
+                    <button id="unlock-slots-btn">Unlock More Slots</button>
+                </div>
+
+                <div class="section-box">
+                    <h3>Research Point Drop Chance</h3>
+                    <p>Current Chance: 1 in <span id="rp-drop-chance-display">1000</span></p>
+                    <div class="progress-bar-container"><div id="rp-drop-chance-progress" class="progress-bar-fill"></div></div>
+                    <div>Cost: <span id="rp-drop-cost-display">N/A</span> (<span id="rp-drop-level-display">Lvl N/A</span>)</div>
+                    <button id="upgrade-rp-drop-chance-btn">Upgrade Drop Chance</button>
+                </div>
+
+                <div class="section-box">
+                    <h3>Artifacts</h3>
+                    <div class="button-group">
+                        <button id="research-damage-artifact-btn">Damage Artifact (<span id="damage-artifact-cost">10000</span> R)</button>
+                        <button id="research-health-artifact-btn">Health Artifact (<span id="health-artifact-cost">10000</span> R)</button>
+                        <button id="research-fire-rate-artifact-btn">Fire Rate Artifact (<span id="fire-rate-artifact-cost">10000</span> R)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Modal -->
+    <div id="message-modal">
+        <div class="modal-content">
+            <h3 id="modal-title"></h3>
+            <p id="modal-message"></p>
+            <button id="modal-close-button" class="close-button">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Constants ---
+        const GAME_LOOP_INTERVAL = 16; // milliseconds, roughly 60 FPS
+        const ENEMY_SPAWN_INTERVAL = 1500; // milliseconds between enemy spawns
+        const PROJECTILE_SPEED = 15; // Pixels per game tick (Increased for faster bullets)
+        const SELL_REFUND_PERCENTAGE = 0.7; // 70% refund
+
+        // Enemy scaling factors - now 10% per wave
+        const ENEMY_HEALTH_SCALING_FACTOR = 0.1;
+        const ENEMY_DAMAGE_SCALING_FACTOR = 0.1;
+        const ENEMY_SPEED_SCALING_FACTOR = 0.05; // Speed increases by 5% per wave
+
+        // Core (Main Turret) position in percentage of game area (BOTTOM-MIDDLE)
+        const CORE_X_PERCENT = 50;
+        const CORE_Y_PERCENT = 90; // Closer to the bottom
+
+        // Turret Slot Arc Configuration (for 10 slots, arcing upwards from bottom-middle core)
+        const INITIAL_NUM_TURRET_SLOTS = 10;
+        const TURRET_SLOTS_PER_ROW_UNLOCK = 10; // New: 10 slots per research unlock
+        const TURRET_CIRCLE_RADIUS = 180; // Distance from main turret center to slot centers
+        // Angles adjusted for bottom-middle:
+        const TURRET_START_ANGLE_DEG = 210; // Start from bottom-left quadrant, wider range
+        const TURRET_END_ANGLE_DEG = 330; // End at bottom-right quadrant, wider range
+
+        // --- Game Data Definitions ---
+        const ENEMY_TYPES = {
+            // Base values adjusted so that (base * (1 + 1 * 0.1)) = desired Wave 1 value
+            BASIC: { health: 50 / (1 + ENEMY_HEALTH_SCALING_FACTOR), speed: 50, damageToBase: 5 / (1 + ENEMY_DAMAGE_SCALING_FACTOR), resourceValue: 10, color: '#e53e3e' },
+            FAST: { health: 30 / (1 + ENEMY_HEALTH_SCALING_FACTOR), speed: 100, damageToBase: 3 / (1 + ENEMY_DAMAGE_SCALING_FACTOR), resourceValue: 15, color: '#667eea' },
+            TANK: { health: 200 / (1 + ENEMY_HEALTH_SCALING_FACTOR), speed: 30, damageToBase: 10 / (1 + ENEMY_DAMAGE_SCALING_FACTOR), resourceValue: 25, color: '#744210' },
+            MONSTER: { health: 150 / (1 + ENEMY_HEALTH_SCALING_FACTOR), speed: 40, damageToBase: 15 / (1 + ENEMY_DAMAGE_SCALING_FACTOR), resourceValue: 30, color: '#8B4513' }, // SaddleBrown
+            DEMON: { health: 120 / (1 + ENEMY_HEALTH_SCALING_FACTOR), speed: 60, damageToBase: 20 / (1 + ENEMY_DAMAGE_SCALING_FACTOR), resourceValue: 40, color: '#800000' }, // Maroon
+            GHOST: { health: 70 / (1 + ENEMY_HEALTH_SCALING_FACTOR), speed: 70, damageToBase: 8 / (1 + ENEMY_DAMAGE_SCALING_FACTOR), resourceValue: 20, color: '#ADD8E6', opacity: 0.7 }, // LightBlue, translucent
+            BOSS: { health: (50 * 10) / (1 + ENEMY_HEALTH_SCALING_FACTOR), speed: 25, damageToBase: 50 / (1 + ENEMY_DAMAGE_SCALING_FACTOR), resourceValue: 100, color: '#4B0082' } // Indigo
+        };
+
+        const DEFENDER_TYPES = {
+            BASIC: {
+                name: 'Basic Turret', cost: 100, baseDamage: 10 * 2, baseFireRate: 1000 / 2, baseRange: 150 * 2, color: '#4299e1',
+                upgrades: [
+                    { cost: 75, damage: 15, fireRate: 900, range: 160 },
+                    { cost: 120, damage: 25, fireRate: 800, range: 170 },
+                    { cost: 200, damage: 40, fireRate: 700, range: 180 },
+                    { cost: 350, damage: 60, fireRate: 600, range: 200 }
+                ],
+                maxLevel: 4
+            },
+            SENTRY: {
+                name: 'Sentry Turret', cost: 120, baseDamage: 8 * 2, baseFireRate: 800 / 2, baseRange: 200 * 2, color: '#38b2ac',
+                upgrades: [
+                    { cost: 90, damage: 12, fireRate: 750, range: 210 },
+                    { cost: 150, damage: 20, fireRate: 700, range: 220 },
+                    { cost: 250, damage: 35, fireRate: 650, range: 230 },
+                    { cost: 400, damage: 55, fireRate: 600, range: 250 }
+                ],
+                maxLevel: 4
+            },
+            RAPID: {
+                name: 'Rapid Turret', cost: 150, baseDamage: 5 * 2, baseFireRate: 300 / 2, baseRange: 120 * 2, color: '#f6ad55',
+                upgrades: [
+                    { cost: 100, damage: 8, fireRate: 280, range: 125 },
+                    { cost: 180, damage: 12, fireRate: 250, range: 130 },
+                    { cost: 300, damage: 18, fireRate: 220, range: 135 },
+                    { cost: 500, damage: 25, fireRate: 180, range: 140 }
+                ],
+                maxLevel: 4
+            },
+            HEAVY: {
+                name: 'Heavy Turret', cost: 300, baseDamage: 50 * 2, baseFireRate: 2000 / 2, baseRange: 250 * 2, color: '#c53030',
+                upgrades: [
+                    { cost: 200, damage: 70, fireRate: 1800, range: 260 },
+                    { cost: 350, damage: 100, fireRate: 1600, range: 270 },
+                    { cost: 550, damage: 150, fireRate: 1400, range: 280 },
+                    { cost: 800, damage: 220, fireRate: 1200, range: 300 }
+                ],
+                maxLevel: 4
+            },
+            LASER: {
+                name: 'Laser Turret', cost: 400, baseDamage: 2 * 2, baseFireRate: 100 / 2, baseRange: 180 * 2, color: '#e53e3e',
+                upgrades: [
+                    { cost: 250, damage: 3, fireRate: 90, range: 190 },
+                    { cost: 400, damage: 5, fireRate: 80, range: 200 },
+                    { cost: 600, damage: 7, fireRate: 70, range: 210 },
+                    { cost: 900, damage: 10, fireRate: 60, range: 220 }
+                ],
+                maxLevel: 4
+            },
+            GUNNER: {
+                name: 'Gunner Turret', cost: 500, baseDamage: 15 * 2, baseFireRate: 400 / 2, baseRange: 160 * 2, color: '#2b6cb0',
+                upgrades: [
+                    { cost: 300, damage: 20, fireRate: 380, range: 170 },
+                    { cost: 500, damage: 30, fireRate: 350, range: 180 },
+                    { cost: 750, damage: 45, fireRate: 320, range: 190 },
+                    { cost: 1100, damage: 65, fireRate: 280, range: 200 }
+                ],
+                maxLevel: 4
+            },
+            MACHINE_GUN: {
+                name: 'Machine Gun Turret', cost: 600, baseDamage: 10 * 2, baseFireRate: 150 / 2, baseRange: 150 * 2, color: '#ecc94b',
+                upgrades: [
+                    { cost: 350, damage: 12, fireRate: 140, range: 155 },
+                    { cost: 550, damage: 15, fireRate: 130, range: 160 },
+                    { cost: 800, damage: 18, fireRate: 120, range: 165 },
+                    { cost: 1200, damage: 22, fireRate: 110, range: 170 }
+                ],
+                maxLevel: 4
+            },
+            POISON_ARROW: {
+                name: 'Poison Arrow Turret', cost: 700, baseDamage: 5 * 2, baseFireRate: 1500 / 2, baseRange: 200 * 2, dotDamage: 3, dotDuration: 5000, dotTickInterval: 1000, color: '#38a169',
+                upgrades: [
+                    { cost: 400, damage: 8, fireRate: 1400, range: 210, dotDamage: 5, dotDuration: 6000 },
+                    { cost: 650, damage: 12, fireRate: 1300, range: 220, dotDamage: 8, dotDuration: 7000 },
+                    { cost: 900, damage: 18, fireRate: 1200, range: 230, dotDamage: 12, dotDuration: 8000 },
+                    { cost: 1400, damage: 25, fireRate: 1100, range: 240, dotDamage: 18, dotDuration: 10000 }
+                ],
+                maxLevel: 4
+            },
+            ROCKET_LAUNCHER: {
+                name: 'Rocket Launcher', cost: 800, baseDamage: 70 * 2, baseFireRate: 3000 / 2, baseRange: 300 * 2, splashRadius: 60, color: '#dd6b20',
+                upgrades: [
+                    { cost: 500, damage: 100, fireRate: 2800, range: 310, splashRadius: 70 },
+                    { cost: 800, damage: 140, fireRate: 2600, range: 320, splashRadius: 80 },
+                    { cost: 1200, damage: 200, fireRate: 2400, range: 330, splashRadius: 90 },
+                    { cost: 1800, damage: 300, fireRate: 2200, range: 350, splashRadius: 100 }
+                ],
+                maxLevel: 4
+            }
+        };
+
+        const BASE_DEFENDER_STATS = {
+            baseDamage: 1, baseFireRate: 1000, baseRange: 150 * 3, // Initial base values
+            upgrades: [
+                { cost: 50, damage: 2, fireRate: 900, range: 160 * 3 }, // Level 1
+                { cost: 100, damage: 4, fireRate: 800, range: 170 * 3 }, // Level 2
+                { cost: 200, damage: 8, fireRate: 700, range: 180 * 3 }, // Level 3
+                { cost: 350, damage: 15, fireRate: 600, range: 190 * 3 }, // Level 4
+                { cost: 500, damage: 25, fireRate: 500, range: 200 * 3 } // Level 5
+            ],
+            maxLevel: 5
+        };
+
+        const BASE_HEALTH_UPGRADE_STATS = {
+            baseMaxHealth: 100, // Initial base max health
+            upgrades: [
+                { cost: 75, healthIncrease: 25 }, // Level 1 (125 total)
+                { cost: 150, healthIncrease: 50 }, // Level 2 (175 total)
+                { cost: 250, healthIncrease: 75 }, // Level 3 (250 total)
+                { cost: 400, healthIncrease: 100 }, // Level 4 (350 total)
+                { cost: 600, healthIncrease: 150 } // Level 5 (500 total)
+            ],
+            maxLevel: 5
+        };
+
+        const BASE_HEALTH_REGEN_STATS = {
+            upgrades: [
+                { cost: 100, regenRate: 0.5 }, // Level 1
+                { cost: 200, regenRate: 1.0 }, // Level 2
+                { cost: 350, regenRate: 1.5 }, // Level 3
+                { cost: 500, regenRate: 2.0 }, // Level 4
+                { cost: 750, regenRate: 3.0 } // Level 5
+            ],
+            maxLevel: 5
+        };
+
+        const RESOURCE_MULTIPLIER_STATS = {
+            upgrades: [
+                { cost: 150, multiplier: 1.2 }, // Level 1
+                { cost: 300, multiplier: 1.5 }, // Level 2
+                { cost: 500, multiplier: 1.8 }, // Level 3
+                { cost: 800, multiplier: 2.2 }, // Level 4
+                { cost: 1200, multiplier: 2.8 } // Level 5
+            ],
+            maxLevel: 5
+        };
+
+        const MAIN_TURRET_UPGRADE_PATH = [
+            // Damage, FireRate, and Range are now multiplied by 2 at the start
+            { level: 0, cost: 200, type: 'BASIC', turnSpeed: Math.PI, range: 500, damageMultiplier: 2, fireRateDivisor: 2 }, // Initial build (becomes BASIC), range set to 500
+            { level: 1, cost: 300, type: 'RAPID', turnSpeed: Math.PI * 1.2, range: 520, damageMultiplier: 2, fireRateDivisor: 2 },
+            { level: 2, cost: 500, type: 'HEAVY', turnSpeed: Math.PI * 0.8, range: 550, damageMultiplier: 2, fireRateDivisor: 2 },
+            { level: 3, cost: 800, type: 'LASER', turnSpeed: Math.PI * 1.5, range: 580, damageMultiplier: 2, fireRateDivisor: 2 },
+            { level: 4, cost: 1200, type: 'POISON_ARROW', turnSpeed: Math.PI * 1.1, range: 600, damageMultiplier: 2, fireRateDivisor: 2 },
+            { level: 5, cost: 1800, type: 'ROCKET_LAUNCHER', turnSpeed: Math.PI * 0.7, range: 650, damageMultiplier: 2, fireRateDivisor: 2 }
+        ];
+
+        const RESEARCH_STATS = {
+            SLOT_UNLOCKS: {
+                slotsToAdd: TURRET_SLOTS_PER_ROW_UNLOCK, // Number of slots added per research level
+                cost: 1000, // Fixed cost per unlock
+                maxLevel: 5 // Max 5 additional rows (50 slots total)
+            },
+            RESEARCH_POINT_DROP_CHANCE: {
+                baseChance: 1000, // 1 in 1000
+                increasePerLevel: 5, // Increases chance by 5 (e.g., 1 in 995 for first upgrade)
+                maxLevel: 100,
+                baseCost: 50, // Initial cost in Research Points
+                costMultiplier: 1.1 // Cost increases by 10% per level
+            },
+            ARTIFACTS: {
+                DAMAGE_ARTIFACT: {
+                    name: 'Damage Artifact',
+                    baseCost: 10000, // Resources
+                    costMultiplier: 1.5,
+                    effectMultiplier: 1.25,
+                    levelKey: 'damageArtifactLevel'
+                },
+                HEALTH_ARTIFACT: {
+                    name: 'Health Artifact',
+                    baseCost: 10000, // Resources
+                    costMultiplier: 1.5,
+                    effectMultiplier: 1.25,
+                    levelKey: 'healthArtifactLevel'
+                },
+                FIRE_RATE_ARTIFACT: {
+                    name: 'Fire Rate Artifact',
+                    baseCost: 10000, // Resources
+                    costMultiplier: 1.5,
+                    effectMultiplier: 1.25,
+                    levelKey: 'fireRateArtifactLevel'
+                }
+            }
+        };
+
+
+        let _turretSlotPositions = []; // Stores calculated pixel positions for slots
+
+        // Define the initial game data structure
+        const INITIAL_GAME_DATA = {
+            resources: 1000,
+            researchPoints: 0, // New: Research Points
+            baseHealth: 100,
+            maxBaseHealth: 100, // This will be affected by artifactHealthBonus
+            baseHealthLevel: 0,
+            baseRegenLevel: 0,
+            baseRegenRate: 0,
+            resourceMultiplier: 1.0,
+            resourceMultiplierLevel: 0,
+            wave: 0,
+            isWaveActive: false,
+            waveEnemiesRemaining: 0,
+            waveSpawnTimer: 0,
+            enemies: [],
+            projectiles: [],
+            defenders: [],
+            turretSlots: Array(INITIAL_NUM_TURRET_SLOTS).fill(null), // Stores defender IDs or null
+            unlockedTurretSlotsLevel: 0, // New: Level for unlocked slots
+            researchPointDropChanceLevel: 0, // New: Level for research point drop chance
+            selectedDefenderId: null,
+            nextEnemyId: 0,
+            nextDefenderId: 0,
+            gameRunning: false,
+            gameOver: false,
+            lastUpdateTime: 0,
+            explosions: [],
+            showMainTurretRange: false,
+            gameSpeedMultiplier: 1, // Default to 1x speed
+            baseDefender: {
+                id: 'base-defender',
+                type: 'BASE',
+                name: 'Base Defender',
+                level: 0,
+                damage: BASE_DEFENDER_STATS.baseDamage, // Initial base damage
+                fireRate: BASE_DEFENDER_STATS.baseFireRate, // Initial base fire rate
+                range: BASE_DEFENDER_STATS.baseRange, // Initial base range
+                lastShotTime: 0
+            },
+            mainTurret: {
+                id: 'main-turret-0',
+                type: 'NONE',
+                name: 'CORE TURRET',
+                level: -1, // -1 means unbuilt
+                damage: 0,
+                fireRate: 0,
+                range: 0,
+                lastShotTime: 0,
+                currentAngle: 0,
+                turnSpeed: Math.PI * 0.5,
+                element: null,
+                svgElement: null,
+                splashRadius: 0,
+                dotDamage: 0,
+                dotDuration: 0,
+                dotTickInterval: 0,
+                imageUrl: ''
+            },
+            damageArtifactLevel: 0,
+            healthArtifactLevel: 0,
+            fireRateArtifactLevel: 0,
+            artifactDamageBonus: 1.0,
+            artifactHealthBonus: 1.0,
+            artifactFireRateBonus: 1.0,
+        };
+
+        // Initialize gameData from a deep copy of INITIAL_GAME_DATA
+        let gameData = JSON.parse(JSON.stringify(INITIAL_GAME_DATA));
+
+        // --- DOM Elements ---
+        const gameCanvas = document.getElementById('game-canvas');
+        const ctx = gameCanvas.getContext('2d'); // Get 2D rendering context
+        const gameArea = document.getElementById('game-area'); // Still needed for sizing
+        const controls = document.getElementById('controls');
+        const resourcesDisplay = document.getElementById('resources-display');
+        const researchPointsDisplay = document.getElementById('research-points-display'); // New
+        const baseHealthDisplay = document.getElementById('base-health-display');
+        const baseMaxHealthDisplayHeader = document.getElementById('base-max-health-display'); // For header
+        const waveNumberDisplay = document.getElementById('wave-number-display');
+        const totalDpsDisplay = document.getElementById('total-dps-display');
+        const nextEnemyAttackDisplay = document.getElementById('next-enemy-attack-display');
+        const nextEnemyHpDisplay = document.getElementById('next-enemy-hp-display');
+
+        const buyBasicDefenderBtn = document.getElementById('buy-basic-defender-btn');
+        const buySentryDefenderBtn = document.getElementById('buy-sentry-defender-btn');
+        const buyRapidDefenderBtn = document.getElementById('buy-rapid-defender-btn');
+        const buyPoisonArrowDefenderBtn = document.getElementById('buy-poison-arrow-defender-btn');
+        const buyLaserDefenderBtn = document.getElementById('buy-laser-defender-btn');
+        const buyGunnerDefenderBtn = document.getElementById('buy-gunner-defender-btn');
+        const buyMachineGunDefenderBtn = document.getElementById('buy-machine-gun-defender-btn');
+        const buyHeavyDefenderBtn = document.getElementById('buy-heavy-defender-btn');
+        const buyRocketLauncherDefenderBtn = document.getElementById('buy-rocket-launcher-defender-btn');
+
+        const selectedDefenderInfo = document.getElementById('selected-defender-info');
+        const upgradeCostDisplay = document.getElementById('upgrade-cost-display');
+        const upgradeLevelDisplay = document.getElementById('upgrade-level-display');
+        const upgradeDefenderBtn = document.getElementById('upgrade-defender-btn');
+        const sellValueDisplay = document.getElementById('sell-value-display');
+        const sellDefenderBtn = document.getElementById('sell-defender-btn');
+
+        const mainTurretElement = document.getElementById('main-turret'); // Still the SVG container
+        const mainTurretTypeDisplay = document.getElementById('main-turret-type-display');
+        const mainTurretLevelDisplay = document.getElementById('main-turret-level-display');
+        const mainTurretDmgDisplay = document.getElementById('main-turret-dmg-display');
+        const mainTurretSpdDisplay = document.getElementById('main-turret-spd-display');
+        const mainTurretRangeDisplay = document.getElementById('main-turret-range-display');
+        const mainTurretCostDisplay = document.getElementById('main-turret-cost-display');
+        const upgradeMainTurretBtn = document.getElementById('upgrade-main-turret-btn');
+
+
+        const baseDmgDisplay = document.getElementById('base-dmg-display');
+        const baseSpdDisplay = document = document.getElementById('base-spd-display');
+        const baseRangeDisplay = document.getElementById('base-range-display');
+        const baseUpgradeCostDisplay = document.getElementById('base-upgrade-cost-display');
+        const baseUpgradeLevelDisplay = document.getElementById('base-upgrade-level-display');
+        const upgradeBaseDefenderBtn = document.getElementById('upgrade-base-defender-btn');
+        const baseAttackProgress = document.getElementById('base-attack-progress');
+
+
+        const baseMaxHealthDisplayUpgrade = document.getElementById('base-max-health-display-upgrade'); // For upgrades panel
+        const baseHealthCostDisplay = document.getElementById('base-health-cost-display');
+        const baseHealthLevelDisplay = document.getElementById('base-health-level-display');
+        const upgradeBaseHealthBtn = document.getElementById('upgrade-base-health-btn');
+        const baseHealthProgress = document.getElementById('base-health-progress');
+
+
+        const baseRegenRateDisplay = document.getElementById('base-regen-rate-display');
+        const baseRegenCostDisplay = document.getElementById('base-regen-cost-display');
+        const baseRegenLevelDisplay = document.getElementById('base-regen-level-display');
+        const upgradeBaseRegenBtn = document.getElementById('upgrade-base-regen-btn');
+        const baseRegenProgress = document.getElementById('base-regen-progress');
+
+
+        const currentMultiplierDisplay = document.getElementById('current-multiplier-display');
+        const multiplierCostDisplay = document.getElementById('multiplier-cost-display');
+        const multiplierLevelDisplay = document.getElementById('multiplier-level-display');
+        const upgradeResourceMultiplierBtn = document.getElementById('upgrade-resource-multiplier-btn');
+        const multiplierProgress = document.getElementById('multiplier-progress');
+
+
+        const startNextWaveBtn = document.getElementById('start-next-wave-btn');
+        const saveGameBtn = document.getElementById('save-game-btn');
+        const loadGameBtn = document.getElementById('load-game-btn');
+        const restartGameBtn = document.getElementById('restart-game-btn'); // New restart button
+
+        const speed2xBtn = document.getElementById('speed-2x-btn'); // New
+        const speed5xBtn = document.getElementById('speed-5x-btn'); // New
+        const speed10xBtn = document.getElementById('speed-10x-btn'); // New
+
+        const tabTurretsBtn = document.getElementById('tab-turrets-btn');
+        const tabUpgradesBtn = document.getElementById('tab-upgrades-btn');
+        const tabResearchBtn = document.getElementById('tab-research-btn'); // New
+        const turretsPanel = document.getElementById('turrets-panel');
+        const upgradesPanel = document.getElementById('upgrades-panel');
+        const researchPanel = document.getElementById('research-panel'); // New
+
+        const currentSlotsDisplay = document.getElementById('current-slots-display'); // New
+        const unlockSlotsCostDisplay = document.getElementById('unlock-slots-cost-display'); // New
+        const unlockSlotsLevelDisplay = document.getElementById('unlock-slots-level-display'); // New
+        const unlockSlotsBtn = document.getElementById('unlock-slots-btn'); // New
+
+        const rpDropChanceDisplay = document.getElementById('rp-drop-chance-display'); // New
+        const rpDropCostDisplay = document.getElementById('rp-drop-cost-display'); // New
+        const rpDropLevelDisplay = document.getElementById('rp-drop-level-display'); // New
+        const upgradeRpDropChanceBtn = document.getElementById('upgrade-rp-drop-chance-btn'); // New
+        const rpDropChanceProgress = document.getElementById('rp-drop-chance-progress'); // New
+
+        const researchDamageArtifactBtn = document.getElementById('research-damage-artifact-btn'); // New
+        const damageArtifactCostDisplay = document.getElementById('damage-artifact-cost'); // New
+        const researchHealthArtifactBtn = document.getElementById('research-health-artifact-btn'); // New
+        const healthArtifactCostDisplay = document.getElementById('health-artifact-cost'); // New
+        const researchFireRateArtifactBtn = document.getElementById('research-fire-rate-artifact-btn'); // New
+        const fireRateArtifactCostDisplay = document.getElementById('fire-rate-artifact-cost'); // New
+
+
+        const messageModal = document.getElementById('message-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const modalCloseButton = document.getElementById('modal-close-button');
+
+        let gameLoopId; // Declare gameLoopId globally to be accessible for clearInterval
+
+        // --- Core Game Functions ---
+        /**
+         * Initializes the game by setting up UI, calculating turret slots,
+         * rendering them, and starting the game loop.
+         */
+        function initGame() {
+            // Set initial canvas size
+            resizeCanvas();
+            gameData.mainTurret.element = mainTurretElement; // Link the DOM element
+            calculateTurretSlotPositions(); // Calculate initial slots
+            // Render the initial unbuilt core SVG
+            gameData.mainTurret.svgElement = _initializeMainTurretSVG(mainTurretElement, 'NONE');
+            _updateMainTurretVisuals();
+            setupEventListeners();
+            updateUI();
+            startGameLoop();
+        }
+
+        /**
+         * Displays a message in the modal popup.
+         * @param {string} title - The title of the message.
+         * @param {string} message - The main message content.
+         */
+        function showMessage(title, message) {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            messageModal.style.display = 'flex';
+        }
+
+        /**
+         * Hides the message modal popup.
+         */
+        function hideMessage() {
+            modalMessage.textContent = ''; // Clear message on close
+            modalTitle.textContent = ''; // Clear title on close
+            messageModal.style.display = 'none';
+        }
+
+        /**
+         * Calculates the Euclidean distance between two points.
+         * @param {number} x1 - X coordinate of the first point.
+         * @param {number} y1 - Y coordinate of the first point.
+         * @param {number} x2 - X coordinate of the second point.
+         * @param {number} y2 - Y coordinate of the second point.
+         * @returns {number} The distance between the two points.
+         */
+        function getDistance(x1, y1, x2, y2) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        /**
+         * Calculates the angle in radians between two points.
+         * @param {number} x1 - X coordinate of the first point.
+         * @param {number} y1 - Y coordinate of the first point.
+         * @param {number} x2 - X coordinate of the second point.
+         * @param {number} y2 - Y coordinate of the second point.
+         * @returns {number} The angle in radians.
+         */
+        function getAngle(x1, y1, x2, y2) {
+            return Math.atan2(y2 - y1, x2 - x1);
+        }
+
+        /**
+         * Gets the current dimensions (width and height) of the canvas.
+         * @returns {{width: number, height: number}} Object containing width and height.
+         */
+        function getCanvasDimensions() {
+            return { width: gameCanvas.width, height: gameCanvas.height };
+        }
+
+        /**
+         * Resizes the canvas to fit its parent container.
+         * This should be called on initialization and window resize.
+         */
+        function resizeCanvas() {
+            const gameAreaRect = gameArea.getBoundingClientRect();
+            gameCanvas.width = gameAreaRect.width;
+            gameCanvas.height = gameAreaRect.height;
+
+            // Recalculate positions based on new canvas size
+            calculateTurretSlotPositions();
+            // Update main turret position based on new canvas size
+            const { width, height } = getCanvasDimensions();
+            gameData.mainTurret.x = (CORE_X_PERCENT / 100) * width;
+            gameData.mainTurret.y = (CORE_Y_PERCENT / 100) * height;
+            _updateMainTurretVisuals(); // Update DOM position of SVG container
+        }
+
+        /**
+         * Calculates the positions for all turret slots in an arc around the main turret (core).
+         * These positions are stored in `_turretSlotPositions`.
+         */
+        function calculateTurretSlotPositions() {
+            _turretSlotPositions = [];
+            const { width, height } = getCanvasDimensions();
+            // Use the main turret's calculated position as the center for the arc
+            const mainTurretCenterX = (CORE_X_PERCENT / 100) * width;
+            const mainTurretCenterY = (CORE_Y_PERCENT / 100) * height;
+
+            // Determine the total number of slots
+            const totalSlots = INITIAL_NUM_TURRET_SLOTS + (gameData.unlockedTurretSlotsLevel * RESEARCH_STATS.SLOT_UNLOCKS.slotsToAdd);
+
+            // Convert degrees to radians for Math.cos/sin
+            const startAngleRad = TURRET_START_ANGLE_DEG * Math.PI / 180;
+            const endAngleRad = TURRET_END_ANGLE_DEG * Math.PI / 180;
+
+            // Calculate angle step, ensuring correct direction for the arc
+            const angleRange = endAngleRad - startAngleRad;
+            const angleStep = angleRange / (totalSlots - 1);
+
+            for (let i = 0; i < totalSlots; i++) {
+                const currentAngleRad = startAngleRad + i * angleStep;
+                const x = mainTurretCenterX + TURRET_CIRCLE_RADIUS * Math.cos(currentAngleRad);
+                const y = mainTurretCenterY + TURRET_CIRCLE_RADIUS * Math.sin(currentAngleRad); // Use + for sin because canvas Y increases downwards
+
+                _turretSlotPositions.push({ x, y });
+            }
+        }
+
+        /**
+         * This function no longer creates DOM elements, but ensures `gameData.turretSlots`
+         * is correctly populated for drawing.
+         */
+        function renderTurretSlots() {
+            // No DOM elements to remove, just ensure the data is consistent
+            // This function is mainly for initial setup or after loading
+        }
+
+        /**
+         * Spawns a new enemy at a random top or right edge position
+         * and adds it to the game state.
+         */
+        function spawnEnemy() {
+            const { width, height } = getCanvasDimensions();
+            let enemyTypeKeys = [
+                'BASIC', 'FAST', 'TANK'
+            ];
+
+            // Introduce new enemy types based on wave number
+            if (gameData.wave >= 3) { // Example wave to introduce new enemies
+                enemyTypeKeys.push('MONSTER', 'GHOST');
+            }
+            if (gameData.wave >= 6) { // Example wave to introduce more new enemies
+                enemyTypeKeys.push('DEMON');
+            }
+
+            let randomTypeKey;
+            // Guarantee a Boss on every 5th wave starting from wave 5
+            if (gameData.wave > 0 && gameData.wave % 5 === 0) {
+                randomTypeKey = 'BOSS';
+            } else {
+                randomTypeKey = enemyTypeKeys[Math.floor(Math.random() * enemyTypeKeys.length)];
+            }
+
+            const enemyStats = ENEMY_TYPES[randomTypeKey];
+
+            let startX, startY;
+            const spawnEdge = Math.random() < 0.5 ? 'top' : 'right'; // 50/50 chance to spawn from top or right
+
+            if (spawnEdge === 'top') {
+                startX = Math.random() * width;
+                startY = -50; // Start off-screen above
+            } else {
+                startX = width + 50; // Start off-screen to the right
+                startY = Math.random() * height;
+            }
+
+            // Enemies target the center of the main turret (which is now the core)
+            const coreTargetX = (CORE_X_PERCENT / 100) * width;
+            const coreTargetY = (CORE_Y_PERCENT / 100) * height;
+
+            // Apply scaling based on current wave number
+            // Wave 0 is initial state, Wave 1 is the first actual wave
+            const currentWaveForScaling = gameData.wave > 0 ? gameData.wave : 1; // Use 1 for wave 0 to get initial scaled values
+            const enemyHealth = enemyStats.health * (1 + currentWaveForScaling * ENEMY_HEALTH_SCALING_FACTOR);
+            const enemyDamage = enemyStats.damageToBase * (1 + currentWaveForScaling * ENEMY_DAMAGE_SCALING_FACTOR);
+            const enemySpeed = enemyStats.speed * (1 + currentWaveForScaling * ENEMY_SPEED_SCALING_FACTOR);
+
+            const enemy = {
+                id: gameData.nextEnemyId++,
+                type: randomTypeKey,
+                health: enemyHealth,
+                maxHealth: enemyHealth,
+                speed: enemySpeed,
+                resourceValue: enemyStats.resourceValue,
+                damageToBase: enemyDamage,
+                x: startX,
+                y: startY,
+                radius: 20, // Size for drawing
+                isDead: false,
+                isPoisoned: false,
+                poisonRemainingTime: 0,
+                poisonTickDamage: 0,
+                lastPoisonTick: 0,
+                waypoints: [{ x: startX, y: startY }, { x: coreTargetX, y: coreTargetY }], // Start at spawn, move to core
+                targetWaypointIndex: 1
+            };
+
+            gameData.enemies.push(enemy);
+        }
+
+        /**
+         * Updates the position of a single enemy based on its speed and target waypoint.
+         * Handles reaching the base and applying poison damage.
+         * @param {object} enemy - The enemy object to update.
+         * @param {number} deltaTime - Time elapsed since the last tick in milliseconds.
+         */
+        function updateEnemyPosition(enemy, deltaTime) {
+            if (enemy.isDead || gameData.gameOver) return;
+
+            const currentWaypoint = enemy.waypoints[enemy.targetWaypointIndex];
+            if (!currentWaypoint) {
+                // Enemy reached the end of its path (the base)
+                dealDamageToBase(enemy.damageToBase);
+                enemy.isDead = true; // Mark for removal
+                return;
+            }
+
+            const dx = currentWaypoint.x - enemy.x;
+            const dy = currentWaypoint.y - enemy.y;
+            const distance = getDistance(enemy.x, enemy.y, currentWaypoint.x, currentWaypoint.y);
+
+            // Speed is in pixels per second, deltaTime is in milliseconds
+            const moveStep = enemy.speed * (deltaTime / 1000);
+
+            if (distance < moveStep) {
+                enemy.x = currentWaypoint.x;
+                enemy.y = currentWaypoint.y;
+                enemy.targetWaypointIndex++;
+            } else {
+                const angle = getAngle(enemy.x, enemy.y, currentWaypoint.x, currentWaypoint.y);
+                enemy.x += Math.cos(angle) * moveStep;
+                enemy.y += Math.sin(angle) * moveStep;
+            }
+
+            // Handle poison damage
+            if (enemy.isPoisoned && enemy.poisonRemainingTime > 0) {
+                if (Date.now() - enemy.lastPoisonTick >= DEFENDER_TYPES.POISON_ARROW.dotTickInterval) {
+                    enemy.health -= enemy.poisonTickDamage;
+                    enemy.lastPoisonTick = Date.now();
+                    if (enemy.health <= 0) {
+                        enemy.isDead = true;
+                        gameData.resources += enemy.resourceValue * gameData.resourceMultiplier;
+                        // Research point drop chance on enemy death
+                        const currentChance = RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.baseChance -
+                                             (gameData.researchPointDropChanceLevel * RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.increasePerLevel);
+                        if (Math.random() * currentChance < 1) {
+                            _gainResearchPoints(1);
+                        }
+                    }
+                }
+                enemy.poisonRemainingTime -= deltaTime;
+                if (enemy.poisonRemainingTime <= 0) {
+                    enemy.isPoisoned = false;
+                }
+            }
+        }
+
+        /**
+         * Rotates a turret element (specifically its SVG <g> group) to face a target gradually.
+         * This is the primary turning function.
+         * @param {object} shooter - The shooter object (e.g., gameData.mainTurret) with currentAngle and turnSpeed.
+         * @param {number} targetX - The X coordinate of the target.
+         * @param {number} targetY - The Y coordinate of the target.
+         * @param {number} deltaTime - Time elapsed since the last tick in milliseconds.
+         */
+        function rotateTurretTowardsTarget(shooter, targetX, targetY, deltaTime) {
+            // Ensure the SVG element and turnSpeed are valid
+            if (!shooter.svgElement || shooter.turnSpeed === 0) {
+                return;
+            }
+
+            const targetAngle = getAngle(shooter.x, shooter.y, targetX, targetY);
+            let angleDiff = targetAngle - shooter.currentAngle;
+
+            // Normalize angleDiff to be between -PI and PI
+            while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+            while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+            // Calculate maximum angle the turret can turn in this tick
+            const maxTurn = shooter.turnSpeed * (deltaTime / 1000); // Radians per second * seconds
+
+            // If the absolute angle difference is less than or equal to the maximum turn,
+            // just snap to the target angle to avoid overshooting.
+            if (Math.abs(angleDiff) <= maxTurn) {
+                shooter.currentAngle = targetAngle;
+            } else {
+                // Otherwise, turn by the maximum allowed amount in the direction of the target.
+                shooter.currentAngle += Math.sign(angleDiff) * maxTurn;
+            }
+
+            // Apply the rotation to the SVG element
+            _applyTurretRotationToDOM(shooter);
+        }
+
+        /**
+         * Applies the currentAngle of the shooter to its DOM SVG element.
+         * This function is separated for clarity and reusability.
+         * @param {object} shooter - The shooter object with currentAngle and svgElement.
+         */
+        function _applyTurretRotationToDOM(shooter) {
+            if (shooter.svgElement) {
+                // SVG transform-origin is set in CSS, or could be set here:
+                // shooter.svgElement.style.transformOrigin = '75px 120px';
+                shooter.svgElement.style.transform = `rotate(${shooter.currentAngle}rad)`;
+            }
+        }
+
+        /**
+         * Calculates the starting position of a projectile from a rotated turret.
+         * This ensures projectiles appear to come from the barrel.
+         * @param {object} shooter - The shooter object (defender or main turret).
+         * @param {number} angleRad - The current rotation angle of the turret in radians.
+         * @returns {{x: number, y: number}} The calculated starting coordinates for the projectile.
+         */
+        function _getProjectileLaunchPoint(shooter, angleRad) {
+            // These values are based on the SVG design's transform-origin (75, 120) and gun length.
+            // The offsetX and offsetY values represent the ABSOLUTE coordinates of the projectile spawn point
+            // within the 150x150 SVG viewBox, assuming the SVG is unrotated (i.e., gun pointing right).
+            let offsetX, offsetY;
+            const TURRET_ROTATION_ORIGIN_X = 75;
+            const TURRET_ROTATION_ORIGIN_Y = 120;
+
+            // Determine the offset based on the turret type to match its visual barrel tip
+            switch (shooter.type) {
+                case 'SENTRY': offsetX = 140; offsetY = 120; break;
+                case 'BASIC': offsetX = 150; offsetY = 120; break;
+                case 'RAPID': offsetX = 125; offsetY = 114; break; // Tip of top gun
+                case 'HEAVY': offsetX = 160; offsetY = 120; break;
+                case 'LASER': offsetX = 148; offsetY = 120; break;
+                case 'GUNNER': offsetX = 140; offsetY = 120; break; // Middle gun tip
+                case 'MACHINE_GUN': offsetX = 125; offsetY = 120; break;
+                case 'POISON_ARROW': offsetX = 120; offsetY = 120; break;
+                case 'ROCKET_LAUNCHER': offsetX = 150; offsetY = 120; break;
+                case 'BASE': offsetX = 140; offsetY = 120; break; // Default for base defender (like SENTRY)
+                default: offsetX = 130; offsetY = 120; break; // Generic default
+            }
+
+            // Calculate the offset from the rotation origin (75, 120) to the barrel tip (offsetX, offsetY)
+            const relativeOffsetX = offsetX - TURRET_ROTATION_ORIGIN_X;
+            const relativeOffsetY = offsetY - TURRET_ROTATION_ORIGIN_Y;
+
+            // Calculate the rotated offset based on the turret's current visual angle
+            const rotatedOffsetX = relativeOffsetX * Math.cos(angleRad) - relativeOffsetY * Math.sin(angleRad);
+            const rotatedOffsetY = relativeOffsetX * Math.sin(angleRad) + relativeOffsetY * Math.cos(angleRad);
+
+            // Add the rotated offset to the turret's actual game coordinates (which are its rotation origin)
+            const projectileStartX = shooter.x + rotatedOffsetX;
+            const projectileStartY = shooter.y + rotatedOffsetY;
+
+            return { x: projectileStartX, y: projectileStartY };
+        }
+
+        /**
+         * Handles the main turret's targeting, rotation, and firing logic.
+         * This function would be called within the main game loop (e.g., from updateDefenders).
+         * @param {object} mainTurret - The main turret game object.
+         * @param {Array<object>} enemies - The array of active enemy objects.
+         * @param {number} deltaTime - Time elapsed since the last tick in milliseconds.
+         */
+        function _handleMainTurretTargetingAndFiring(mainTurret, enemies, deltaTime) {
+            if (mainTurret.level === -1) return; // Turret not built, so it cannot target or fire
+
+            const targetEnemy = _findClosestEnemyInRange(mainTurret, enemies);
+
+            // Always rotate if there's a target
+            if (targetEnemy) {
+                rotateTurretTowardsTarget(mainTurret, targetEnemy.x, targetEnemy.y, deltaTime);
+            }
+
+            // Apply fire rate artifact bonus
+            const effectiveFireRate = mainTurret.fireRate / gameData.artifactFireRateBonus;
+            const timeSinceLastShot = Date.now() - mainTurret.lastShotTime;
+            const canShoot = timeSinceLastShot >= effectiveFireRate;
+
+            // Fire if a target is found and the turret's cooldown allows
+            if (targetEnemy && canShoot) {
+                // Use the turret's current visual angle for projectile origin calculation.
+                _fireProjectileFromTurret(mainTurret, targetEnemy, mainTurret.currentAngle);
+                mainTurret.lastShotTime = Date.now();
+            }
+        }
+
+        /**
+         * Finds the closest enemy within a shooter's range.
+         * @param {object} shooter - The shooter object (defender or main turret).
+         * @param {Array<object>} enemies - The array of active enemy objects.
+         * @returns {object|null} The closest enemy object, or null if none found.
+         */
+        function _findClosestEnemyInRange(shooter, enemies) {
+            let targetEnemy = null;
+            let closestDistance = Infinity;
+
+            enemies.forEach(enemy => {
+                if (enemy.isDead) return;
+
+                const enemyCenterX = enemy.x;
+                const enemyCenterY = enemy.y;
+
+                const distance = getDistance(shooter.x, shooter.y, enemyCenterX, enemyCenterY);
+
+                if (distance <= shooter.range && distance < closestDistance) {
+                    closestDistance = distance;
+                    targetEnemy = enemy;
+                }
+            });
+            return targetEnemy;
+        }
+
+        /**
+         * Creates and launches a projectile from a shooter towards a target enemy.
+         * This function dynamically sets the visual properties for each projectile type.
+         * @param {object} shooter - The defender or base defender object firing.
+         * @param {object} targetEnemy - The enemy object to target.
+         * @param {number} projectileAngle - The angle at which the projectile should be launched (turret's current angle).
+         */
+        function _fireProjectileFromTurret(shooter, targetEnemy, projectileAngle) {
+            const { x: initialProjectileCenterX, y: initialProjectileCenterY } = _getProjectileLaunchPoint(shooter, projectileAngle);
+
+            let projWidth, projHeight;
+            let color, shadowColor, shadowBlur;
+            let shape = 'circle'; // Default shape
+            let globalCompositeOperation = 'source-over'; // Default blending mode
+
+            // Define properties based on projectile type
+            switch (shooter.type) {
+                case 'BASIC':
+                    projWidth = 10; projHeight = 10; color = '#63b3ed'; shadowColor = '#63b3ed'; shadowBlur = 15; break; // Brighter blue, stronger glow
+                case 'RAPID':
+                    projWidth = 6; projHeight = 6; color = '#FFD700'; shadowColor = '#FFD700'; shadowBlur = 12; globalCompositeOperation = 'lighter'; break; // Intense yellow, lighter blend
+                case 'HEAVY':
+                    projWidth = 30; projHeight = 30; color = '#333333'; shadowColor = '#FF4500'; shadowBlur = 25; globalCompositeOperation = 'lighter'; break; // Dark core, fiery orange glow
+                case 'SENTRY':
+                    projWidth = 7; projHeight = 7; color = '#00FFFF'; shadowColor = '#00FFFF'; shadowBlur = 10; break; // Cyan, subtle glow
+                case 'LASER':
+                    projWidth = 5; projHeight = 30; color = '#FF0000'; shadowColor = '#FF0000'; shadowBlur = 20; shape = 'rect'; globalCompositeOperation = 'lighter'; break; // Intense red line, strong glow
+                case 'GUNNER':
+                    projWidth = 18; projHeight = 7; color = '#A9A9A9'; shadowColor = '#ADD8E6'; shadowBlur = 8; shape = 'rect'; break; // Metallic grey, light blue glow
+                case 'MACHINE_GUN':
+                    projWidth = 12; projHeight = 8; color = '#FFFF00'; shadowColor = '#FFFF00'; shadowBlur = 15; shape = 'rect'; globalCompositeOperation = 'lighter'; break; // Bright yellow, strong glow
+                case 'POISON_ARROW':
+                    projWidth = 12; projHeight = 30; color = 'rgba(0,255,0,0.8)'; shadowColor = '#00FF00'; shadowBlur = 18; shape = 'arrow'; break; // Vibrant green, translucent
+                case 'ROCKET_LAUNCHER':
+                    projWidth = 35; projHeight = 25; color = '#FFA500'; shadowColor = '#FF4500'; shadowBlur = 30; shape = 'rocket'; globalCompositeOperation = 'lighter'; break; // Orange, large fiery glow, custom rocket shape
+                case 'BASE':
+                    projWidth = 10; projHeight = 10; color = '#a0aec0'; shadowColor = '#a0aec0'; shadowBlur = 8; break; // Simple white/light gray with a small glow
+                default:
+                    projWidth = 8; projHeight = 8; color = '#cbd5e1'; shadowColor = '#cbd5e1'; shadowBlur = 5; break;
+            }
+
+            // Apply damage artifact bonus to projectile damage
+            const effectiveDamage = shooter.damage * gameData.artifactDamageBonus;
+
+            const projectile = {
+                id: Date.now() + Math.random(),
+                shooterId: shooter.id,
+                damage: effectiveDamage, // Use effective damage
+                x: initialProjectileCenterX,
+                y: initialProjectileCenterY,
+                targetEnemy: targetEnemy,
+                isHit: false,
+                type: shooter.type,
+                width: projWidth,
+                height: projHeight,
+                color: color,
+                shadowColor: shadowColor, // Store shadow properties
+                shadowBlur: shadowBlur,
+                shape: shape,
+                angle: projectileAngle, // Store the initial angle for drawing
+                splashRadius: shooter.splashRadius || 0,
+                dotDamage: shooter.dotDamage || 0,
+                dotDuration: shooter.dotDuration || 0,
+                dotTickInterval: shooter.dotTickInterval || 0,
+                globalCompositeOperation: globalCompositeOperation // Store blending mode
+            };
+
+            gameData.projectiles.push(projectile);
+        }
+
+        /**
+         * Updates all defenders (player-bought, base, and main turret).
+         * Each defender attempts to find a target and fire if its cooldown allows.
+         * @param {number} deltaTime - Time elapsed since the last tick in milliseconds.
+         */
+        function updateDefenders(deltaTime) {
+            const { width, height } = getCanvasDimensions();
+            // The base defender's origin is now the main turret's position
+            const baseCenterX = (CORE_X_PERCENT / 100) * width;
+            const baseCenterY = (CORE_Y_PERCENT / 100) * height;
+
+            // Handle main turret separately as it has unique rotation logic
+            if (gameData.mainTurret && gameData.mainTurret.level !== -1) {
+                _handleMainTurretTargetingAndFiring(gameData.mainTurret, gameData.enemies, deltaTime);
+            }
+
+            // Handle other defenders (they don't visually rotate, so no need for `rotateTurretTowardsTarget`)
+            gameData.defenders.forEach(defender => {
+                if (gameData.gameOver) return;
+
+                let targetEnemy = _findClosestEnemyInRange(defender, gameData.enemies);
+
+                // Apply fire rate artifact bonus
+                const effectiveFireRate = defender.fireRate / gameData.artifactFireRateBonus;
+                const timeSinceLastShot = Date.now() - defender.lastShotTime;
+                const canShoot = timeSinceLastShot >= effectiveFireRate;
+
+                if (targetEnemy && canShoot) {
+                    // For other defenders, calculate the angle directly to the target
+                    const projectileAngle = getAngle(defender.x, defender.y, targetEnemy.x, targetEnemy.y);
+                    _fireProjectileFromTurret(defender, targetEnemy, projectileAngle);
+                    defender.lastShotTime = Date.now();
+                }
+            });
+
+            // Handle base defender (which is essentially the core's inherent attack)
+            // ONLY allow base defender to shoot if main turret IS NOT built (level is -1)
+            // This ensures only main turret bullets fire once it's active.
+            if (gameData.baseDefender && gameData.mainTurret.level === -1) {
+                const baseDefenderTargetEnemy = _findClosestEnemyInRange(
+                    { x: baseCenterX, y: baseCenterY, range: gameData.baseDefender.range },
+                    gameData.enemies
+                );
+
+                // Apply fire rate artifact bonus
+                const effectiveBaseFireRate = gameData.baseDefender.fireRate / gameData.artifactFireRateBonus;
+                const timeSinceLastBaseShot = Date.now() - gameData.baseDefender.lastShotTime;
+                const canBaseShoot = timeSinceLastBaseShot >= effectiveBaseFireRate;
+
+                if (baseDefenderTargetEnemy && canBaseShoot) {
+                    // Base defender doesn't visually rotate, so just fire directly at target
+                    const projectileAngle = getAngle(baseCenterX, baseCenterY, baseDefenderTargetEnemy.x, baseDefenderTargetEnemy.y);
+                    _fireProjectileFromTurret(
+                        {
+                            ...gameData.baseDefender,
+                            x: baseCenterX,
+                            y: baseCenterY,
+                            type: 'BASE' // Ensure type is passed for projectile styling
+                        },
+                        baseDefenderTargetEnemy,
+                        projectileAngle
+                    );
+                    gameData.baseDefender.lastShotTime = Date.now();
+                }
+            }
+        }
+
+        /**
+         * Updates the position and collision of all active projectiles.
+         * Handles different projectile effects (splash, poison) on hit.
+         * @param {number} deltaTime - Time elapsed since the last tick in milliseconds.
+         */
+        function updateProjectiles(deltaTime) {
+            gameData.projectiles = gameData.projectiles.filter(projectile => {
+                if (projectile.isHit || gameData.gameOver) {
+                    return false; // Remove hit or game over projectiles
+                }
+
+                const targetEnemy = projectile.targetEnemy;
+                if (!targetEnemy || targetEnemy.isDead) {
+                    return false; // Remove if target is gone
+                }
+
+                const dx = targetEnemy.x - projectile.x;
+                const dy = targetEnemy.y - projectile.y;
+                const distance = getDistance(projectile.x, projectile.y, targetEnemy.x, targetEnemy.y);
+
+                const moveStep = PROJECTILE_SPEED * (deltaTime / GAME_LOOP_INTERVAL); // Pixels per tick
+
+                if (distance < moveStep) {
+                    projectile.isHit = true; // Mark as hit
+
+                    if (projectile.type === 'ROCKET_LAUNCHER' && projectile.splashRadius > 0) {
+                        gameData.enemies.forEach(enemy => {
+                            if (!enemy.isDead) {
+                                const distToImpact = getDistance(enemy.x, enemy.y, targetEnemy.x, targetEnemy.y);
+                                if (distToImpact <= projectile.splashRadius) {
+                                    enemy.health -= projectile.damage;
+                                    if (enemy.health <= 0) {
+                                        enemy.isDead = true;
+                                        gameData.resources += enemy.resourceValue * gameData.resourceMultiplier;
+                                        // Research point drop chance on enemy death
+                                        const currentChance = RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.baseChance -
+                                                              (gameData.researchPointDropChanceLevel * RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.increasePerLevel);
+                                        if (Math.random() * currentChance < 1) {
+                                            _gainResearchPoints(1);
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        createExplosion(targetEnemy.x, targetEnemy.y, projectile.splashRadius);
+                    } else if (projectile.type === 'POISON_ARROW' && projectile.dotDamage > 0) {
+                        targetEnemy.health -= projectile.damage;
+                        if (targetEnemy.health <= 0) {
+                            targetEnemy.isDead = true;
+                            gameData.resources += targetEnemy.resourceValue * gameData.resourceMultiplier;
+                            // Research point drop chance on enemy death
+                            const currentChance = RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.baseChance -
+                                                  (gameData.researchPointDropChanceLevel * RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.increasePerLevel);
+                            if (Math.random() * currentChance < 1) {
+                                _gainResearchPoints(1);
+                            }
+                        } else {
+                            targetEnemy.isPoisoned = true;
+                            targetEnemy.poisonRemainingTime = projectile.dotDuration;
+                            targetEnemy.poisonTickDamage = projectile.dotDamage;
+                            targetEnemy.lastPoisonTick = Date.now();
+                        }
+                        createExplosion(targetEnemy.x, targetEnemy.y);
+                    } else {
+                        targetEnemy.health -= projectile.damage;
+                        if (targetEnemy.health <= 0) {
+                            targetEnemy.isDead = true;
+                            gameData.resources += targetEnemy.resourceValue * gameData.resourceMultiplier;
+                            // Research point drop chance on enemy death
+                            const currentChance = RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.baseChance -
+                                                  (gameData.researchPointDropChanceLevel * RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.increasePerLevel);
+                            if (Math.random() * currentChance < 1) {
+                                _gainResearchPoints(1);
+                            }
+                        }
+                        createExplosion(targetEnemy.x, targetEnemy.y);
+                    }
+                    return false; // Remove projectile after hit
+                } else {
+                    const angle = getAngle(projectile.x, projectile.y, targetEnemy.x, targetEnemy.y);
+                    projectile.x += Math.cos(angle) * moveStep;
+                    projectile.y += Math.sin(angle) * moveStep;
+                    return true; // Keep projectile if not hit
+                }
+            });
+        }
+
+        /**
+         * Creates a visual explosion effect at a given coordinate.
+         * @param {number} x - X coordinate for the explosion.
+         * @param {number} y - Y coordinate for the explosion.
+         * @param {number} [radius=25] - Max radius of the explosion effect.
+         */
+        function createExplosion(x, y, radius = 25) {
+            gameData.explosions.push({
+                x: x,
+                y: y,
+                maxRadius: radius,
+                currentRadius: 0,
+                opacity: 1,
+                startTime: Date.now(),
+                duration: 300 // milliseconds
+            });
+        }
+
+        /**
+         * Updates active explosion effects.
+         * @param {number} deltaTime - Time elapsed since last tick.
+         */
+        function updateExplosions(deltaTime) {
+            gameData.explosions = gameData.explosions.filter(explosion => {
+                const elapsed = Date.now() - explosion.startTime;
+                const progress = elapsed / explosion.duration;
+
+                if (progress >= 1) {
+                    return false; // Remove expired explosions
+                }
+
+                explosion.currentRadius = explosion.maxRadius * (progress * 1.5); // Overshoot slightly
+                explosion.opacity = 1 - progress; // Fade out
+                return true;
+            });
+        }
+
+        /**
+         * Applies damage to the base and checks for game over condition.
+         * @param {number} damage - Amount of damage to deal to the base.
+         */
+        function dealDamageToBase(damage) {
+            gameData.baseHealth -= damage;
+            if (gameData.baseHealth <= 0) {
+                gameData.baseHealth = 0;
+                gameOver();
+            }
+            updateUI();
+        }
+
+        /**
+         * Handles the game over state: stops the game, displays a message,
+         * and clears all active enemies and projectiles.
+         */
+        function gameOver() {
+            gameData.gameRunning = false;
+            gameData.gameOver = true;
+            showMessage("Game Over!", `Your base was destroyed! You reached Wave ${gameData.wave}.`);
+            gameData.enemies = [];
+            gameData.projectiles = [];
+            gameData.explosions = [];
+        }
+
+        /**
+         * Starts the next wave of enemies if no wave is currently active.
+         * Increments wave number and sets up enemy spawning.
+         */
+        function startWave() {
+            if (gameData.isWaveActive) {
+                showMessage("Wave in Progress", "A wave is already active! Wait for it to finish or be defeated.");
+                return;
+            }
+            if (gameData.gameOver) {
+                showMessage("Game Over", "The game is over! Start a new game to play again.");
+                return;
+            }
+
+            gameData.wave++;
+            // Wave 1 has 10 enemies, each subsequent wave adds 2 enemies
+            gameData.waveEnemiesRemaining = 10 + (gameData.wave - 1) * 2;
+            gameData.isWaveActive = true;
+            gameData.waveSpawnTimer = 0;
+            startNextWaveBtn.disabled = true;
+
+            console.log(`Starting Wave ${gameData.wave}. Enemies to spawn: ${gameData.waveEnemiesRemaining}`);
+            showMessage("Wave Incoming!", `Wave ${gameData.wave} is starting!`);
+            updateUI();
+        }
+
+        /**
+         * Checks if the current wave has ended (all enemies spawned and defeated).
+         * Re-enables the "Start Next Wave" button if cleared.
+         */
+        function checkWaveEnd() {
+            if (gameData.isWaveActive && gameData.waveEnemiesRemaining <= 0 && gameData.enemies.length === 0) {
+                console.log("Wave end condition met!");
+                gameData.isWaveActive = false;
+                startNextWaveBtn.disabled = false;
+                _gainResearchPoints(gameData.wave * 5); // Gain research points per wave cleared
+                showMessage("Wave Cleared!", `You successfully defended Wave ${gameData.wave}! You gained ${gameData.wave * 5} Research Points!`);
+            } else {
+                // console.log(`Wave check: Active=${gameData.isWaveActive}, Spawned=${gameData.waveEnemiesRemaining <= 0}, Enemies on screen=${gameData.enemies.length}`);
+            }
+        }
+
+        /**
+         * Adds research points to the game data.
+         * @param {number} amount - The amount of research points to add.
+         */
+        function _gainResearchPoints(amount) {
+            gameData.researchPoints += amount;
+            updateUI();
+        }
+
+        // --- Game Loop ---
+        /**
+         * Starts the main game loop if it's not already running.
+         * The loop calls `gameTick` at a fixed interval.
+         */
+        function startGameLoop() {
+            if (gameData.gameRunning) return;
+            gameData.gameRunning = true;
+            gameData.lastUpdateTime = Date.now();
+            gameLoopId = setInterval(gameTick, GAME_LOOP_INTERVAL);
+        }
+
+        /**
+         * The main game tick function, called repeatedly by the game loop.
+         * Updates all game elements: spawns enemies, moves enemies, updates defenders,
+         * updates projectiles, cleans up dead entities, and checks wave status.
+         */
+        function gameTick() {
+            if (gameData.gameOver) {
+                clearInterval(gameLoopId);
+                gameData.gameRunning = false;
+                return;
+            }
+
+            const currentTime = Date.now();
+            // Adjust deltaTime based on game speed multiplier
+            const deltaTime = (currentTime - gameData.lastUpdateTime) * gameData.gameSpeedMultiplier;
+            gameData.lastUpdateTime = currentTime;
+
+            // Apply base health regeneration
+            if (gameData.baseRegenRate > 0) {
+                gameData.baseHealth += gameData.baseRegenRate * (deltaTime / 1000);
+                // Ensure base health doesn't exceed max health (affected by artifact)
+                const effectiveMaxBaseHealth = INITIAL_GAME_DATA.maxBaseHealth * gameData.artifactHealthBonus;
+                if (gameData.baseHealth > effectiveMaxBaseHealth) {
+                    gameData.baseHealth = effectiveMaxBaseHealth;
+                }
+            }
+
+            // Spawn enemies if wave is active and enemies are remaining
+            if (gameData.isWaveActive && gameData.waveEnemiesRemaining > 0) {
+                gameData.waveSpawnTimer += deltaTime;
+                if (gameData.waveSpawnTimer >= ENEMY_SPAWN_INTERVAL) {
+                    spawnEnemy();
+                    gameData.waveEnemiesRemaining--;
+                    gameData.waveSpawnTimer = 0;
+                }
+            }
+
+            // Update all active game elements
+            gameData.enemies.forEach(enemy => updateEnemyPosition(enemy, deltaTime));
+            updateDefenders(deltaTime); // This is where rotation is triggered
+            updateProjectiles(deltaTime);
+            updateExplosions(deltaTime); // Update explosions
+
+            gameData.enemies = gameData.enemies.filter(enemy => !enemy.isDead);
+
+            checkWaveEnd();
+            drawGame(); // Redraw everything on canvas
+            updateUI();
+        }
+
+        /**
+         * Sets the game speed multiplier.
+         * @param {number} multiplier - The desired speed multiplier (e.g., 2, 5, 10).
+         */
+        function setGameSpeed(multiplier) {
+            gameData.gameSpeedMultiplier = multiplier;
+            clearInterval(gameLoopId); // Stop current loop
+            startGameLoop(); // Start new loop with updated speed
+            updateUI(); // Update UI to reflect speed change
+        }
+
+        // --- Canvas Drawing Functions ---
+        /**
+         * Main drawing function. Clears the canvas and redraws all game elements.
+         */
+        function drawGame() {
+            ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height); // Clear the entire canvas
+
+            // Draw main turret range indicator (drawn on canvas, not DOM)
+            if (gameData.mainTurret.level !== -1 && gameData.showMainTurretRange) {
+                drawRangeIndicator(gameData.mainTurret.x, gameData.mainTurret.y, gameData.mainTurret.range);
+            }
+
+            // Draw empty turret slots
+            const currentTotalSlots = INITIAL_NUM_TURRET_SLOTS + (gameData.unlockedTurretSlotsLevel * RESEARCH_STATS.SLOT_UNLOCKS.slotsToAdd);
+            for (let i = 0; i < currentTotalSlots; i++) {
+                // Ensure the slot position exists before trying to draw
+                if (_turretSlotPositions[i] && gameData.turretSlots[i] === null) {
+                    const pos = _turretSlotPositions[i];
+                    drawTurretSlot(pos.x, pos.y, i + 1);
+                }
+            }
+
+
+            // Draw defenders
+            gameData.defenders.forEach(defender => {
+                drawDefender(defender);
+            });
+
+            // Draw enemies
+            gameData.enemies.forEach(enemy => {
+                drawEnemy(enemy);
+            });
+
+            // Draw projectiles
+            gameData.projectiles.forEach(projectile => {
+                drawProjectile(projectile);
+            });
+
+            // Draw explosions
+            gameData.explosions.forEach(explosion => {
+                drawExplosion(explosion);
+            });
+
+            // The main turret SVG is a DOM element, so it's not drawn here.
+            // Its position and rotation are managed by _updateMainTurretVisuals and _applyTurretRotationToDOM
+        }
+
+        /**
+         * Draws an enemy on the canvas.
+         * @param {object} enemy - The enemy object.
+         */
+        function drawEnemy(enemy) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+            ctx.fillStyle = enemy.isPoisoned ? '#68d391' : ENEMY_TYPES[enemy.type].color;
+            ctx.shadowColor = ctx.fillStyle;
+            ctx.shadowBlur = 15;
+            if (ENEMY_TYPES[enemy.type].opacity !== undefined) {
+                ctx.globalAlpha = ENEMY_TYPES[enemy.type].opacity; // Apply opacity for ghost
+            }
+            ctx.fill();
+            ctx.restore(); // Reset shadow and globalAlpha
+
+            // Draw health bar
+            const healthBarWidth = enemy.radius * 2;
+            const healthBarHeight = 5;
+            const healthPercentage = enemy.health / enemy.maxHealth;
+
+            ctx.fillStyle = 'red';
+            ctx.fillRect(enemy.x - healthBarWidth / 2, enemy.y - enemy.radius - healthBarHeight - 5, healthBarWidth, healthBarHeight);
+
+            ctx.fillStyle = 'lime';
+            ctx.fillRect(enemy.x - healthBarWidth / 2, enemy.y - enemy.radius - healthBarHeight - 5, healthBarWidth * healthPercentage, healthBarHeight);
+
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(enemy.x - healthBarWidth / 2, enemy.y - enemy.radius - healthBarHeight - 5, healthBarWidth, healthBarHeight);
+
+            // Draw enemy type for Boss
+            if (enemy.type === 'BOSS') {
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('BOSS', enemy.x, enemy.y + enemy.radius + 10);
+            }
+        }
+
+        /**
+         * Draws a defender on the canvas as a hexagon.
+         * @param {object} defender - The defender object.
+         */
+        function drawDefender(defender) {
+            ctx.save();
+            ctx.translate(defender.x, defender.y);
+
+            const size = 40; // Smaller size for the hexagon
+            const halfSize = size / 2;
+
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = Math.PI / 3 * i + Math.PI / 6; // Add PI/6 to rotate to a flat top
+                const hx = size * Math.cos(angle);
+                const hy = size * Math.sin(angle);
+                if (i === 0) {
+                    ctx.moveTo(hx, hy);
+                } else {
+                    ctx.lineTo(hx, hy);
+                }
+            }
+            ctx.closePath();
+
+            ctx.fillStyle = DEFENDER_TYPES[defender.type].color;
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 8;
+            ctx.fill();
+            ctx.strokeStyle = '#2d3748';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw selection outline if selected
+            if (gameData.selectedDefenderId === defender.id) {
+                ctx.strokeStyle = '#f6e05e';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = 'rgba(246, 224, 94, 0.8)';
+                ctx.shadowBlur = 15;
+                ctx.stroke();
+            }
+            ctx.restore(); // Reset shadow and transform
+
+            // Draw text (first letter of type)
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 18px Arial'; // Adjusted font size for smaller hexagon
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(defender.type.charAt(0), defender.x, defender.y - 5); // Adjusted Y for better centering in hexagon
+
+            // Draw level text
+            ctx.fillStyle = '#a0aec0';
+            ctx.font = 'bold 10px Arial'; // Adjusted font size
+            ctx.fillText(`L${defender.level + 1}`, defender.x, defender.y + 10); // Adjusted Y for better centering
+        }
+
+        /**
+         * Draws a projectile on the canvas.
+         * @param {object} projectile - The projectile object.
+         */
+        function drawProjectile(projectile) {
+            ctx.save();
+            ctx.translate(projectile.x, projectile.y);
+            ctx.rotate(projectile.angle); // Apply rotation
+
+            ctx.fillStyle = projectile.color;
+            ctx.shadowColor = projectile.shadowColor;
+            ctx.shadowBlur = projectile.shadowBlur;
+            ctx.globalCompositeOperation = projectile.globalCompositeOperation; // Apply blending mode
+
+            const halfW = projectile.width / 2;
+            const halfH = projectile.height / 2;
+
+            switch (projectile.shape) {
+                case 'circle':
+                    ctx.beginPath();
+                    ctx.arc(0, 0, halfW, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                case 'rect':
+                    ctx.fillRect(-halfW, -halfH, projectile.width, projectile.height);
+                    break;
+                case 'arrow': // Custom arrow shape
+                    // Arrowhead (points right when angle is 0)
+                    ctx.beginPath();
+                    ctx.moveTo(halfW, 0); // Tip
+                    ctx.lineTo(-halfW, -halfH); // Top left base
+                    ctx.lineTo(-halfW, halfH); // Bottom left base
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Shaft (behind arrowhead)
+                    ctx.fillStyle = projectile.color.replace(/,(\d\.\d)\)/, ',0.6)'); // Slightly darker/more opaque shaft
+                    ctx.fillRect(-halfW - (projectile.height - projectile.width), -2, projectile.height - projectile.width, 4); // Simple rectangle for shaft
+
+                    break;
+                case 'rocket': // Custom rocket shape
+                    // Main body
+                    ctx.fillRect(-halfW, -halfH * 0.7, projectile.width * 0.8, projectile.height * 0.7);
+                    // Nose cone
+                    ctx.beginPath();
+                    ctx.moveTo(halfW * 0.8, -halfH * 0.7);
+                    ctx.lineTo(halfW, 0);
+                    ctx.lineTo(halfW * 0.8, halfH * 0.7);
+                    ctx.closePath();
+                    ctx.fill();
+                    // Fins
+                    ctx.fillStyle = projectile.color;
+                    ctx.fillRect(-halfW * 0.8, halfH * 0.7, projectile.width * 0.2, projectile.height * 0.3); // Bottom fin
+                    ctx.fillRect(-halfW * 0.8, -halfH, projectile.width * 0.2, projectile.height * 0.3); // Top fin
+                    break;
+            }
+            ctx.restore(); // Restore context (removes shadow, blur, and blending mode)
+        }
+
+        /**
+         * Draws an empty turret slot on the canvas.
+         * @param {number} x - X coordinate of the slot center.
+         * @param {number} y - Y coordinate of the slot center.
+         * @param {number} index - The slot number to display.
+         */
+        function drawTurretSlot(x, y, index) {
+            const size = 40; // Smaller size for the hexagon
+            const halfSize = size / 2;
+
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Draw Hexagon
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = Math.PI / 3 * i + Math.PI / 6; // Add PI/6 to rotate to a flat top
+                const hx = size * Math.cos(angle);
+                const hy = size * Math.sin(angle);
+                if (i === 0) {
+                    ctx.moveTo(hx, hy);
+                } else {
+                    ctx.lineTo(hx, hy);
+                }
+            }
+            ctx.closePath();
+
+            ctx.strokeStyle = 'rgba(160, 174, 192, 0.5)';
+            ctx.setLineDash([5, 5]); // Dashed line
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset line dash
+
+            ctx.fillStyle = 'rgba(45, 55, 72, 0.7)'; /* Darker fill for empty slots */
+            ctx.fill();
+
+            // Draw "Slot X" text
+            ctx.fillStyle = '#a0aec0'; /* Light grey text */
+            ctx.font = 'bold 12px Arial'; // Adjusted font size for smaller slot
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`Slot ${index}`, 0, 0); // Centered at (0,0) due to translate
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws the main turret's range indicator on the canvas.
+         * @param {number} x - X coordinate of the turret center.
+         * @param {number} y - Y coordinate of the turret center.
+         * @param {number} range - The range of the turret.
+         */
+        function drawRangeIndicator(x, y, range) {
+            ctx.beginPath();
+            ctx.arc(x, y, range, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(99, 179, 237, 0.5)';
+            ctx.setLineDash([5, 5]);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(99, 179, 237, 0.1)';
+            ctx.fill();
+        }
+
+        /**
+         * Draws an explosion effect on the canvas.
+         * @param {object} explosion - The explosion object.
+         */
+        function drawExplosion(explosion) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(explosion.x, explosion.y, explosion.currentRadius, 0, Math.PI * 2);
+            const gradient = ctx.createRadialGradient(explosion.x, explosion.y, 0, explosion.x, explosion.y, explosion.currentRadius);
+            gradient.addColorStop(0, `rgba(255, 255, 0, ${explosion.opacity})`);
+            gradient.addColorStop(0.5, `rgba(255, 140, 0, ${explosion.opacity * 0.7})`);
+            gradient.addColorStop(1, `rgba(255, 0, 0, ${explosion.opacity * 0.1})`);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.restore();
+        }
+
+
+        // --- UI Update Functions ---
+        /**
+         * Updates all dynamic elements in the user interface (resources, health, wave,
+         * button states, defender info, upgrade costs, etc.).
+         */
+        function updateUI() {
+            resourcesDisplay.textContent = Math.floor(gameData.resources);
+            researchPointsDisplay.textContent = Math.floor(gameData.researchPoints); // Update research points display
+
+            // Apply artifact health bonus to max base health for display
+            const effectiveMaxBaseHealth = INITIAL_GAME_DATA.maxBaseHealth * gameData.artifactHealthBonus;
+            baseHealthDisplay.textContent = Math.floor(Math.max(0, gameData.baseHealth));
+            baseMaxHealthDisplayHeader.textContent = Math.floor(effectiveMaxBaseHealth); // Update header max health
+            waveNumberDisplay.textContent = gameData.wave;
+
+            // Calculate and update Total DPS
+            let totalDPS = 0;
+            // Base defender only contributes DPS if main turret is NOT built
+            if (gameData.baseDefender && gameData.baseDefender.fireRate > 0 && gameData.mainTurret.level === -1) {
+                totalDPS += (gameData.baseDefender.damage * gameData.artifactDamageBonus / (gameData.baseDefender.fireRate / gameData.artifactFireRateBonus)) * 1000;
+            }
+            if (gameData.mainTurret && gameData.mainTurret.level !== -1 && gameData.mainTurret.fireRate > 0) {
+                totalDPS += (gameData.mainTurret.damage * gameData.artifactDamageBonus / (gameData.mainTurret.fireRate / gameData.artifactFireRateBonus)) * 1000;
+            }
+            gameData.defenders.forEach(defender => {
+                if (defender.fireRate > 0) {
+                    totalDPS += (defender.damage * gameData.artifactDamageBonus / (defender.fireRate / gameData.artifactFireRateBonus)) * 1000;
+                }
+            });
+            totalDpsDisplay.textContent = totalDPS.toFixed(1);
+
+            // Calculate and update Next Enemy Attack and HP
+            const nextWave = gameData.wave + 1;
+            const basicEnemyBaseStats = ENEMY_TYPES.BASIC;
+            const nextEnemyAttack = basicEnemyBaseStats.damageToBase * (1 + nextWave * ENEMY_DAMAGE_SCALING_FACTOR);
+            const nextEnemyHealth = basicEnemyBaseStats.health * (1 + nextWave * ENEMY_HEALTH_SCALING_FACTOR);
+
+            nextEnemyAttackDisplay.textContent = Math.round(nextEnemyAttack);
+            nextEnemyHpDisplay.textContent = Math.round(nextEnemyHealth);
+
+            // Update defender purchase button states based on available resources
+            buyBasicDefenderBtn.disabled = gameData.resources < DEFENDER_TYPES.BASIC.cost;
+            buySentryDefenderBtn.disabled = gameData.resources < DEFENDER_TYPES.SENTRY.cost;
+            buyRapidDefenderBtn.disabled = gameData.resources < DEFENDER_TYPES.RAPID.cost;
+            buyPoisonArrowDefenderBtn.disabled = gameData.resources < DEFENDER_TYPES.POISON_ARROW.cost;
+            buyLaserDefenderBtn.disabled = gameData.resources < DEFENDER_TYPES.LASER.cost;
+            buyGunnerDefenderBtn.disabled = gameData.resources < DEFENDER_TYPES.GUNNER.cost;
+            buyMachineGunDefenderBtn.disabled = gameData.resources < DEFENDER_TYPES.MACHINE_GUN.cost;
+            buyHeavyDefenderBtn.disabled = gameData.resources < DEFENDER_TYPES.HEAVY.cost;
+            buyRocketLauncherDefenderBtn.disabled = gameData.resources < DEFENDER_TYPES.ROCKET_LAUNCHER.cost;
+
+            // Update selected defender information and upgrade/sell button states
+            const selectedDefender = gameData.defenders.find(d => d.id === gameData.selectedDefenderId);
+            if (selectedDefender) {
+                // Apply artifact bonuses to display
+                const displayDamage = selectedDefender.damage * gameData.artifactDamageBonus;
+                const displayFireRate = 1000 / (selectedDefender.fireRate / gameData.artifactFireRateBonus);
+
+                selectedDefenderInfo.textContent =
+                    `${selectedDefender.name} (Lvl ${selectedDefender.level + 1}) - Dmg: ${displayDamage.toFixed(1)} | Spd: ${displayFireRate.toFixed(1)}/s | Range: ${selectedDefender.range}`;
+
+                const nextLevel = selectedDefender.level + 1;
+                const nextUpgrade = DEFENDER_TYPES[selectedDefender.type].upgrades[selectedDefender.level];
+
+                if (nextUpgrade) {
+                    upgradeCostDisplay.textContent = nextLevel === DEFENDER_TYPES[selectedDefender.type].maxLevel ? 'MAX' : nextUpgrade.cost;
+                    upgradeLevelDisplay.textContent = `Lvl ${nextLevel + 1}`;
+                    upgradeDefenderBtn.disabled = gameData.resources < nextUpgrade.cost || nextLevel === DEFENDER_TYPES[selectedDefender.type].maxLevel;
+                } else {
+                    upgradeCostDisplay.textContent = 'MAX';
+                    upgradeLevelDisplay.textContent = 'MAX';
+                    upgradeDefenderBtn.disabled = true;
+                }
+
+                const originalCost = DEFENDER_TYPES[selectedDefender.type].cost;
+                const sellValue = Math.floor(originalCost * SELL_REFUND_PERCENTAGE);
+                sellValueDisplay.textContent = sellValue;
+                sellDefenderBtn.disabled = false;
+
+            } else {
+                selectedDefenderInfo.textContent = 'Select a defender to upgrade.';
+                upgradeCostDisplay.textContent = 'N/A';
+                upgradeLevelDisplay.textContent = 'Lvl N/A';
+                upgradeDefenderBtn.disabled = true;
+                sellValueDisplay.textContent = 'N/A';
+                sellDefenderBtn.disabled = true;
+            }
+
+            // Update Main Turret information and upgrade button
+            const currentMainTurretLevel = gameData.mainTurret.level;
+            const nextMainTurretLevel = currentMainTurretLevel + 1;
+            const nextMainTurretUpgrade = MAIN_TURRET_UPGRADE_PATH[nextMainTurretLevel];
+
+            if (currentMainTurretLevel === -1) { // Not yet built
+                mainTurretTypeDisplay.textContent = 'Unbuilt Main Turret'; // Changed text
+                mainTurretLevelDisplay.textContent = '0';
+                mainTurretDmgDisplay.textContent = 'N/A';
+                mainTurretSpdDisplay.textContent = 'N/A';
+                mainTurretRangeDisplay.textContent = 'N/A';
+                mainTurretCostDisplay.textContent = MAIN_TURRET_UPGRADE_PATH[0].cost;
+                upgradeMainTurretBtn.disabled = gameData.resources < MAIN_TURRET_UPGRADE_PATH[0].cost;
+                upgradeMainTurretBtn.textContent = `Build Main Turret (${MAIN_TURRET_UPGRADE_PATH[0].cost} R)`; // Fixed button text
+            } else if (nextMainTurretUpgrade) { // Can upgrade further
+                const currentTypeStats = DEFENDER_TYPES[gameData.mainTurret.type];
+                mainTurretTypeDisplay.textContent = currentTypeStats ? currentTypeStats.name : 'Unknown'; // Ensure name is not undefined
+                mainTurretLevelDisplay.textContent = `${currentMainTurretLevel + 1}`;
+                // Apply artifact bonuses to display
+                mainTurretDmgDisplay.textContent = (gameData.mainTurret.damage * gameData.artifactDamageBonus).toFixed(1);
+                mainTurretSpdDisplay.textContent = Math.round(1000 / (gameData.mainTurret.fireRate / gameData.artifactFireRateBonus));
+                mainTurretRangeDisplay.textContent = gameData.mainTurret.range;
+
+                mainTurretCostDisplay.textContent = nextMainTurretUpgrade.cost;
+                upgradeMainTurretBtn.disabled = gameData.resources < nextMainTurretUpgrade.cost;
+                upgradeMainTurretBtn.textContent = `Upgrade Main Turret (${nextMainTurretUpgrade.cost} R)`; // Fixed button text
+
+            } else { // Max level reached
+                const currentTypeStats = DEFENDER_TYPES[gameData.mainTurret.type];
+                mainTurretTypeDisplay.textContent = currentTypeStats ? currentTypeStats.name : 'Unknown'; // Ensure name is not undefined
+                mainTurretLevelDisplay.textContent = `MAX (${currentMainTurretLevel + 1})`;
+                // Apply artifact bonuses to display
+                mainTurretDmgDisplay.textContent = (gameData.mainTurret.damage * gameData.artifactDamageBonus).toFixed(1);
+                mainTurretSpdDisplay.textContent = Math.round(1000 / (gameData.mainTurret.fireRate / gameData.artifactFireRateBonus));
+                mainTurretRangeDisplay.textContent = gameData.mainTurret.range;
+
+                mainTurretCostDisplay.textContent = 'MAX';
+                upgradeMainTurretBtn.disabled = true;
+                upgradeMainTurretBtn.textContent = `Main Turret MAX`; // Fixed button text
+            }
+
+            // --- Base Upgrades (Conditional on Main Turret being built) ---
+            const canUpgradeBase = gameData.mainTurret.level !== -1;
+
+            // Update base defender attack upgrade information
+            const baseAttackNextUpgrade = BASE_DEFENDER_STATS.upgrades[gameData.baseDefender.level];
+            if (baseAttackNextUpgrade) {
+                baseUpgradeCostDisplay.textContent = baseAttackNextUpgrade.cost;
+                baseUpgradeLevelDisplay.textContent = `Lvl ${gameData.baseDefender.level + 1}`;
+                upgradeBaseDefenderBtn.disabled = !canUpgradeBase || gameData.resources < baseAttackNextUpgrade.cost;
+            } else {
+                baseUpgradeCostDisplay.textContent = 'MAX';
+                baseUpgradeLevelDisplay.textContent = 'MAX';
+                upgradeBaseDefenderBtn.disabled = true;
+            }
+            // Apply artifact bonuses to display
+            baseDmgDisplay.textContent = (gameData.baseDefender.damage * gameData.artifactDamageBonus).toFixed(1);
+            baseSpdDisplay.textContent = Math.round(1000 / (gameData.baseDefender.fireRate / gameData.artifactFireRateBonus));
+            baseRangeDisplay.textContent = gameData.baseDefender.range;
+            // Update Base Attack Progress Bar
+            baseAttackProgress.style.width = `${(gameData.baseDefender.level / BASE_DEFENDER_STATS.maxLevel) * 100}%`;
+
+
+            // Update base health upgrade information
+            const baseHealthNextUpgrade = BASE_HEALTH_UPGRADE_STATS.upgrades[gameData.baseHealthLevel];
+            if (baseHealthNextUpgrade) {
+                baseHealthCostDisplay.textContent = baseHealthNextUpgrade.cost;
+                baseHealthLevelDisplay.textContent = `Lvl ${gameData.baseHealthLevel + 1}`;
+                upgradeBaseHealthBtn.disabled = !canUpgradeBase || gameData.resources < baseHealthNextUpgrade.cost;
+            } else {
+                baseHealthCostDisplay.textContent = 'MAX';
+                baseHealthLevelDisplay.textContent = 'MAX';
+                upgradeBaseHealthBtn.disabled = true;
+            }
+            baseMaxHealthDisplayUpgrade.textContent = Math.floor(effectiveMaxBaseHealth); // Update upgrades panel max health
+            // Update Base Health Progress Bar
+            baseHealthProgress.style.width = `${(gameData.baseHealthLevel / BASE_HEALTH_UPGRADE_STATS.maxLevel) * 100}%`;
+
+
+            // Update base regen upgrade information
+            const baseRegenNextUpgrade = BASE_HEALTH_REGEN_STATS.upgrades[gameData.baseRegenLevel];
+            if (baseRegenNextUpgrade) {
+                baseRegenCostDisplay.textContent = baseRegenNextUpgrade.cost;
+                baseRegenLevelDisplay.textContent = `Lvl ${gameData.baseRegenLevel + 1}`;
+                upgradeBaseRegenBtn.disabled = !canUpgradeBase || gameData.resources < baseRegenNextUpgrade.cost;
+            } else {
+                baseRegenCostDisplay.textContent = 'MAX';
+                baseRegenLevelDisplay.textContent = 'MAX';
+                upgradeBaseRegenBtn.disabled = true;
+            }
+            baseRegenRateDisplay.textContent = gameData.baseRegenRate.toFixed(1);
+            // Update Base Regen Progress Bar
+            baseRegenProgress.style.width = `${(gameData.baseRegenLevel / BASE_HEALTH_REGEN_STATS.maxLevel) * 100}%`;
+
+
+            // Update resource multiplier upgrade information
+            const multiplierNextUpgrade = RESOURCE_MULTIPLIER_STATS.upgrades[gameData.resourceMultiplierLevel];
+            if (multiplierNextUpgrade) {
+                multiplierCostDisplay.textContent = multiplierNextUpgrade.cost;
+                multiplierLevelDisplay.textContent = `Lvl ${gameData.resourceMultiplierLevel + 1}`;
+                upgradeResourceMultiplierBtn.disabled = !canUpgradeBase || gameData.resources < multiplierNextUpgrade.cost;
+            } else {
+                multiplierCostDisplay.textContent = 'MAX';
+                multiplierLevelDisplay.textContent = 'MAX';
+                upgradeResourceMultiplierBtn.disabled = true;
+            }
+            currentMultiplierDisplay.textContent = gameData.resourceMultiplier.toFixed(1);
+            // Update Multiplier Progress Bar
+            multiplierProgress.style.width = `${(gameData.resourceMultiplierLevel / RESOURCE_MULTIPLIER_STATS.maxLevel) * 100}%`;
+
+
+            // --- Research Panel Updates ---
+            // Slot Unlocks
+            const currentTotalSlots = INITIAL_NUM_TURRET_SLOTS + (gameData.unlockedTurretSlotsLevel * RESEARCH_STATS.SLOT_UNLOCKS.slotsToAdd);
+            currentSlotsDisplay.textContent = currentTotalSlots;
+
+            const nextSlotUnlockLevel = gameData.unlockedTurretSlotsLevel + 1;
+            if (nextSlotUnlockLevel <= RESEARCH_STATS.SLOT_UNLOCKS.maxLevel) {
+                unlockSlotsCostDisplay.textContent = RESEARCH_STATS.SLOT_UNLOCKS.cost;
+                unlockSlotsLevelDisplay.textContent = `Lvl ${nextSlotUnlockLevel}`;
+                unlockSlotsBtn.disabled = gameData.researchPoints < RESEARCH_STATS.SLOT_UNLOCKS.cost;
+                unlockSlotsBtn.textContent = `Unlock 10 Slots (${RESEARCH_STATS.SLOT_UNLOCKS.cost} RP)`;
+            } else {
+                unlockSlotsCostDisplay.textContent = 'MAX';
+                unlockSlotsLevelDisplay.textContent = 'MAX';
+                unlockSlotsBtn.disabled = true;
+                unlockSlotsBtn.textContent = `All Slots Unlocked`;
+            }
+
+            // Research Point Drop Chance
+            const currentRPOptimizedChance = RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.baseChance -
+                                             (gameData.researchPointDropChanceLevel * RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.increasePerLevel);
+            rpDropChanceDisplay.textContent = currentRPOptimizedChance;
+
+            const nextRPDropLevel = gameData.researchPointDropChanceLevel + 1;
+            const rpDropNextCost = RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.baseCost * (RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.costMultiplier ** gameData.researchPointDropChanceLevel);
+
+            if (nextRPDropLevel <= RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.maxLevel) {
+                rpDropCostDisplay.textContent = Math.ceil(rpDropNextCost);
+                rpDropLevelDisplay.textContent = `Lvl ${nextRPDropLevel}`;
+                upgradeRpDropChanceBtn.disabled = gameData.researchPoints < rpDropNextCost;
+            } else {
+                rpDropCostDisplay.textContent = 'MAX';
+                rpDropLevelDisplay.textContent = 'MAX';
+                upgradeRpDropChanceBtn.disabled = true;
+            }
+            rpDropChanceProgress.style.width = `${(gameData.researchPointDropChanceLevel / RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.maxLevel) * 100}%`;
+
+
+            // Artifacts
+            for (const artifactKey in RESEARCH_STATS.ARTIFACTS) {
+                const artifact = RESEARCH_STATS.ARTIFACTS[artifactKey];
+                const currentLevel = gameData[artifact.levelKey];
+                const artifactButton = document.getElementById(`research-${artifactKey}-btn`);
+                const artifactCostDisplay = document.getElementById(`${artifact.levelKey.replace('Level', 'Cost')}`);
+
+                const currentCost = artifact.baseCost * (artifact.costMultiplier ** currentLevel);
+
+                if (artifactButton && artifactCostDisplay) {
+                    if (currentLevel > 0) { // Already purchased at least once
+                        artifactButton.textContent = `${artifact.name} (Lvl ${currentLevel + 1}) - ${Math.ceil(currentCost)} R`;
+                    } else { // First purchase
+                        artifactButton.textContent = `${artifact.name} (${Math.ceil(currentCost)} R)`;
+                    }
+
+                    artifactCostDisplay.textContent = Math.ceil(currentCost);
+                    artifactButton.disabled = gameData.resources < currentCost;
+                }
+            }
+
+
+            // Update "Start Next Wave" button state
+            startNextWaveBtn.disabled = gameData.isWaveActive || gameData.gameOver;
+
+            // Update speed button active states
+            speed2xBtn.classList.toggle('active', gameData.gameSpeedMultiplier === 2);
+            speed5xBtn.classList.toggle('active', gameData.gameSpeedMultiplier === 5);
+            speed10xBtn.classList.toggle('active', gameData.gameSpeedMultiplier === 10);
+        }
+
+        /**
+         * Returns an SVG string for the main turret based on its type.
+         * @param {string} type - The type of the turret (e.g., 'SENTRY', 'BASIC').
+         * @returns {string} The SVG string.
+         */
+        function getTurretSVGByType(type) {
+            // Base properties for all turret SVGs
+            const baseCircleCx = 75;
+            const baseCircleCy = 120;
+            const baseCircleR = 40;
+
+            let rotatingPartSVG = '';
+
+            switch (type) {
+                case 'SENTRY':
+                    rotatingPartSVG = `
+                        <circle class="turret-base-circle" cx="${baseCircleCx}" cy="${baseCircleCy}" r="${baseCircleR}" />
+                        <rect class="turret-body-rect" x="45" y="100" width="60" height="40" rx="8" ry="8" />
+                        <rect class="turret-gun-rect" x="100" y="112.5" width="40" height="15" rx="3" ry="3" />
+                        <circle class="turret-detail-circle" cx="135" cy="120" r="3" /> <!-- Sight/Sensor -->
+                        <path d="M75,120 L60,105 L90,105 Z" fill="#a0aec0" opacity="0.7"/> <!-- Small triangular sensor -->
+                        <rect x="55" y="105" width="5" height="30" fill="#a0aec0" rx="1" ry="1" transform="rotate(-15 57.5 120)"/> <!-- Side detail 1 -->
+                        <rect x="85" y="105" width="5" height="30" fill="#a0aec0" rx="1" ry="1" transform="rotate(15 87.5 120)"/> <!-- Side detail 2 -->
+                    `;
+                    break;
+                case 'BASIC':
+                    rotatingPartSVG = `
+                        <circle class="turret-base-circle" cx="${baseCircleCx}" cy="${baseCircleCy}" r="${baseCircleR}" />
+                        <rect class="turret-body-rect" x="40" y="95" width="70" height="50" rx="10" ry="10" />
+                        <rect class="turret-gun-rect" x="105" y="110" width="45" height="20" rx="5" ry="5" />
+                        <rect class="turret-detail-rect" x="145" y="115" width="5" height="10" rx="2" ry="2" /> <!-- Muzzle detail -->
+                        <circle cx="75" cy="120" r="15" fill="#5a677d" stroke="#2d3748" stroke-width="1"/> <!-- Central core detail -->
+                        <line x1="75" y1="105" x2="75" y2="135" stroke="#cbd5e1" stroke-width="2" /> <!-- Vertical line detail -->
+                        <line x1="60" y1="120" x2="90" y2="120" stroke="#cbd5e1" stroke-width="2" /> <!-- Horizontal line detail -->
+                    `;
+                    break;
+                case 'RAPID':
+                    rotatingPartSVG = `
+                        <circle class="turret-base-circle" cx="${baseCircleCx}" cy="${baseCircleCy}" r="${baseCircleR}" />
+                        <rect class="turret-body-rect" x="50" y="105" width="50" height="30" rx="6" ry="6" />
+                        <rect class="turret-gun-rect" x="95" y="110" width="30" height="8" rx="2" ry="2" /> <!-- Top Gun -->
+                        <rect class="turret-gun-rect" x="95" y="122" width="30" height="8" rx="2" ry="2" /> <!-- Bottom Gun -->
+                        <circle class="turret-detail-circle" cx="120" cy="114" r="2" /> <!-- Top exhaust -->
+                        <circle class="turret-detail-circle" cx="120" cy="126" r="2" /> <!-- Bottom exhaust -->
+                        <rect x="60" y="100" width="10" height="40" fill="#a0aec0" rx="2" ry="2" transform="rotate(45 65 120)"/> <!-- Side vent -->
+                        <rect x="105" y="105" width="5" height="20" fill="#a0aec0" rx="1" ry="1" transform="rotate(90 107.5 115)"/> <!-- Barrel support 1 -->
+                        <rect x="105" y="120" width="5" height="20" fill="#a0aec0" rx="1" ry="1" transform="rotate(90 107.5 130)"/> <!-- Barrel support 2 -->
+                    `;
+                    break;
+                case 'HEAVY':
+                    rotatingPartSVG = `
+                        <circle class="turret-base-circle" cx="${baseCircleCx}" cy="${baseCircleCy}" r="${baseCircleR}" />
+                        <rect class="turret-body-rect" x="30" y="90" width="80" height="60" rx="12" ry="12" />
+                        <rect class="turret-gun-rect" x="100" y="107.5" width="60" height="25" rx="7" ry="7" />
+                        <rect class="turret-detail-rect" x="155" y="115" width="5" height="10" rx="2" ry="2" /> <!-- Muzzle brake -->
+                        <rect class="turret-detail-rect" x="80" y="100" width="10" height="40" rx="3" ry="3" transform="rotate(90 85 120)" /> <!-- Recoil spring visual -->
+                        <circle cx="40" cy="120" r="10" fill="#a0aec0" stroke="#2d3748" stroke-width="1"/> <!-- Heavy armor bolt -->
+                        <rect x="35" y="95" width="10" height="50" fill="#5a677d" rx="2" ry="2"/> <!-- Side armor plate -->
+                        <rect x="100" y="100" width="10" height="40" fill="#5a677d" rx="2" ry="2" transform="rotate(90 105 120)"/> <!-- Top gun mount -->
+                    `;
+                    break;
+                case 'LASER':
+                    rotatingPartSVG = `
+                        <circle class="turret-base-circle" cx="${baseCircleCx}" cy="${baseCircleCy}" r="${baseCircleR}" />
+                        <rect class="turret-body-rect" x="45" y="105" width="60" height="30" rx="8" ry="8" />
+                        <rect class="turret-gun-rect" x="100" y="117.5" width="50" height="5" rx="2" ry="2" />
+                        <circle class="turret-detail-circle" cx="148" cy="120" r="4" fill="#FF0000" /> <!-- Laser aperture -->
+                        <line class="turret-detail-line" x1="105" y1="120" x2="145" y2="120" stroke="#FF0000" stroke-width="2" />
+                        <polygon points="55,110 70,120 55,130" fill="#4299e1" opacity="0.8"/> <!-- Energy cell indicator -->
+                        <rect x="60" y="108" width="5" height="24" fill="#cbd5e1" rx="1" ry="1"/> <!-- Power conduit 1 -->
+                        <rect x="70" y="108" width="5" height="24" fill="#cbd5e1" rx="1" ry="1"/> <!-- Power conduit 2 -->
+                    `;
+                    break;
+                case 'GUNNER':
+                    rotatingPartSVG = `
+                        <circle class="turret-base-circle" cx="${baseCircleCx}" cy="${baseCircleCy}" r="${baseCircleR}" />
+                        <rect class="turret-body-rect" x="40" y="95" width="70" height="50" rx="8" ry="8" />
+                        <rect class="turret-gun-rect" x="105" y="106" width="35" height="8" rx="2" ry="2" />
+                        <rect class="turret-gun-rect" x="105" y="116" width="35" height="8" rx="2" ry="2" />
+                        <rect class="turret-gun-rect" x="105" y="126" width="35" height="8" rx="2" ry="2" />
+                        <circle class="turret-detail-circle" cx="138" cy="110" r="2" />
+                        <circle class="turret-detail-circle" cx="138" cy="120" r="2" />
+                        <circle class="turret-detail-circle" cx="138" cy="130" r="2" /> <!-- Gatling-like tips -->
+                        <path d="M50,110 Q60,100 70,110 Q60,120 50,130 Z" fill="#a0aec0" opacity="0.6"/> <!-- Ammo feed visual -->
+                        <path d="M45,115 Q55,105 65,115 Q55,125 45,135 Z" fill="#5a677d" opacity="0.7"/> <!-- Ammo drum outline -->
+                    `;
+                    break;
+                case 'MACHINE_GUN':
+                    rotatingPartSVG = `
+                        <circle class="turret-base-circle" cx="${baseCircleCx}" cy="${baseCircleCy}" r="${baseCircleR}" />
+                        <rect class="turret-body-rect" x="50" y="100" width="50" height="40" rx="6" ry="6" />
+                        <rect class="turret-gun-rect" x="95" y="115" width="30" height="10" rx="3" ry="3" />
+                        <rect class="turret-detail-rect" x="60" y="90" width="20" height="10" rx="2" ry="2" /> <!-- Ammo box -->
+                        <line class="turret-detail-line" x1="80" y1="95" x2="95" y2="118" stroke="#2d3748" stroke-width="1" /> <!-- Ammo belt visual -->
+                        <circle cx="90" cy="120" r="5" fill="#f6ad55" opacity="0.9"/> <!-- Barrel rotation point -->
+                        <rect x="120" y="117.5" width="5" height="5" fill="#a0aec0" rx="1" ry="1"/> <!-- Muzzle flash indicator -->
+                    `;
+                    break;
+                case 'POISON_ARROW':
+                    rotatingPartSVG = `
+                        <circle class="turret-base-circle" cx="${baseCircleCx}" cy="${baseCircleCy}" r="${baseCircleR}" />
+                        <circle class="turret-body-rect" cx="75" cy="120" r="25" />
+                        <rect class="turret-gun-rect" x="50" y="110" width="20" height="5" rx="2" ry="2" transform="rotate(-30 75 120)" />
+                        <rect class="turret-gun-rect" x="50" y="125" width="20" height="5" rx="2" ry="2" transform="rotate(30 75 120)" />
+                        <line class="turret-detail-line" x1="55" y1="110" x2="100" y2="118" stroke="#2d3748" stroke-width="2" /> <!-- Bowstring -->
+                        <rect class="turret-gun-rect" x="100" y="118" width="10" height="4" rx="1" ry="1" /> <!-- Arrow Nock -->
+                        <polygon points="110,120 120,115 120,125" fill="#00FF00" /> <!-- Arrowhead visual -->
+                        <circle cx="75" cy="120" r="10" fill="rgba(0,255,0,0.3)"/> <!-- Poison reservoir glow -->
+                        <rect x="65" y="105" width="20" height="5" fill="#00FF00" rx="1" ry="1"/> <!-- Poison indicator bar -->
+                    `;
+                    break;
+                case 'ROCKET_LAUNCHER':
+                    rotatingPartSVG = `
+                        <circle class="turret-base-circle" cx="${baseCircleCx}" cy="${baseCircleCy}" r="${baseCircleR}" />
+                        <rect class="turret-body-rect" x="40" y="90" width="70" height="60" rx="10" ry="10" />
+                        <rect class="turret-gun-rect" x="100" y="105" width="50" height="30" rx="8" ry="8" />
+                        <rect class="turret-detail-rect" x="145" y="108" width="5" height="24" rx="1" ry="1" /> <!-- Fins -->
+                        <rect class="turret-detail-rect" x="105" y="100" width="5" height="40" rx="1" ry="1" transform="rotate(90 107.5 120)" /> <!-- Loading mechanism -->
+                        <path d="M100,105 L100,135 L90,135 L90,105 Z" fill="#dd6b20" opacity="0.7"/> <!-- Rocket outline -->
+                        <circle cx="110" cy="120" r="8" fill="#ff7f50" opacity="0.8"/> <!-- Rocket chamber light -->
+                        <rect x="50" y="110" width="10" height="30" fill="#a0aec0" rx="2" ry="2" transform="rotate(-45 55 125)"/> <!-- Side support -->
+                    `;
+                    break;
+                case 'NONE': // Unbuilt state - now a plain background with text
+                    rotatingPartSVG = `
+                        <rect x="0" y="0" width="150" height="150" fill="#1a202c" rx="12" ry="12"/>
+                        <text x="75" y="65" font-family="Arial" font-size="16" fill="#a0aec0" text-anchor="middle" alignment-baseline="middle">Unbuilt Main Turret</text>
+                        <text x="75" y="95" font-family="Arial" font-size="12" fill="#a0aec0" text-anchor="middle" alignment-baseline="middle">(Click to Build)</text>
+                    `;
+                    break;
+            }
+
+            return `
+                <svg id="main-turret-svg" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Group for the rotating parts (now includes the base) -->
+                    <g id="turret-rotating-part">
+                        ${rotatingPartSVG}
+                    </g>
+                </svg>
+            `;
+        }
+
+        // --- Event Listeners ---
+        /**
+         * Sets up all event listeners for UI interactions and window events.
+         */
+        function setupEventListeners() {
+            // Tab switching functionality
+            tabTurretsBtn.addEventListener('click', () => switchTab('turrets'));
+            tabUpgradesBtn.addEventListener('click', () => switchTab('upgrades'));
+            tabResearchBtn.addEventListener('click', () => switchTab('research')); // New
+
+            // Event listeners for buying different defender types
+            buyBasicDefenderBtn.addEventListener('click', () => buyDefender('BASIC'));
+            buySentryDefenderBtn.addEventListener('click', () => buyDefender('SENTRY'));
+            buyRapidDefenderBtn.addEventListener('click', () => buyDefender('RAPID'));
+            buyPoisonArrowDefenderBtn.addEventListener('click', () => buyDefender('POISON_ARROW'));
+            buyLaserDefenderBtn.addEventListener('click', () => buyDefender('LASER'));
+            buyGunnerDefenderBtn.addEventListener('click', () => buyDefender('GUNNER'));
+            buyMachineGunDefenderBtn.addEventListener('click', () => buyDefender('MACHINE_GUN'));
+            buyHeavyDefenderBtn.addEventListener('click', () => buyDefender('HEAVY'));
+            buyRocketLauncherDefenderBtn.addEventListener('click', () => buyDefender('ROCKET_LAUNCHER'));
+
+            // Event listeners for upgrade and sell actions
+            upgradeDefenderBtn.addEventListener('click', upgradeSelectedDefender);
+            sellDefenderBtn.addEventListener('click', sellSelectedDefender);
+            upgradeBaseDefenderBtn.addEventListener('click', upgradeBaseDefender);
+            upgradeResourceMultiplierBtn.addEventListener('click', upgradeResourceMultiplier);
+            upgradeBaseHealthBtn.addEventListener('click', upgradeBaseHealth);
+            upgradeBaseRegenBtn.addEventListener('click', upgradeBaseRegen);
+            upgradeMainTurretBtn.addEventListener('click', upgradeMainTurret);
+
+            // New Research Panel buttons
+            unlockSlotsBtn.addEventListener('click', unlockTurretSlots);
+            upgradeRpDropChanceBtn.addEventListener('click', upgradeResearchPointDropChance); // New
+            researchDamageArtifactBtn.addEventListener('click', () => researchArtifact('DAMAGE_ARTIFACT')); // New
+            researchHealthArtifactBtn.addEventListener('click', () => researchArtifact('HEALTH_ARTIFACT')); // New
+            researchFireRateArtifactBtn.addEventListener('click', () => researchArtifact('FIRE_RATE_ARTIFACT')); // New
+
+
+            // Event listeners for general game actions
+            startNextWaveBtn.addEventListener('click', startWave);
+            saveGameBtn.addEventListener('click', saveGame);
+            loadGameBtn.addEventListener('click', loadGame);
+            restartGameBtn.addEventListener('click', restartGame); // New: Restart Game button
+            // Fix for modal close button: ensure it's always listening
+            modalCloseButton.addEventListener('click', hideMessage);
+
+            // Event listeners for game speed buttons
+            speed2xBtn.addEventListener('click', () => setGameSpeed(2));
+            speed5xBtn.addEventListener('click', () => setGameSpeed(5));
+            speed10xBtn.addEventListener('click', () => setGameSpeed(10));
+
+            // Event listeners for main turret range visibility on hover
+            mainTurretElement.addEventListener('mouseover', () => {
+                gameData.showMainTurretRange = true;
+            });
+            mainTurretElement.addEventListener('mouseout', () => {
+                gameData.showMainTurretRange = false;
+            });
+
+            // Event listener for clicking on canvas for turret slots or existing defenders
+            gameCanvas.addEventListener('click', (event) => {
+                const rect = gameCanvas.getBoundingClientRect();
+                const clickX = event.clientX - rect.left;
+                const clickY = event.clientY - rect.top;
+
+                let clickedOnDefender = false;
+                // Check if a defender was clicked
+                for (let i = 0; i < gameData.defenders.length; i++) {
+                    const defender = gameData.defenders[i];
+                    const defenderSize = 40; // Hardcoded size from drawDefender - MUST MATCH drawDefender's size
+                    const halfSize = defenderSize / 2;
+                    // Simple AABB collision for now, could be circle for better accuracy
+                    if (clickX >= defender.x - halfSize && clickX <= defender.x + halfSize &&
+                        clickY >= defender.y - halfSize && clickY <= defender.y + halfSize) {
+                        if (gameData.selectedDefenderId === defender.id) {
+                            gameData.selectedDefenderId = null; // Deselect
+                        } else {
+                            gameData.selectedDefenderId = defender.id; // Select
+                            switchTab('upgrades'); // Auto-switch to upgrades tab
+                        }
+                        clickedOnDefender = true;
+                        updateUI();
+                        break;
+                    }
+                }
+
+                if (!clickedOnDefender) {
+                    // If no defender was clicked, check if an empty slot was clicked
+                    const currentTotalSlots = INITIAL_NUM_TURRET_SLOTS + (gameData.unlockedTurretSlotsLevel * RESEARCH_STATS.SLOT_UNLOCKS.slotsToAdd);
+                    // Ensure we only check within the currently available slots
+                    const emptySlotIndex = gameData.turretSlots.slice(0, currentTotalSlots).findIndex(slotId => slotId === null);
+                    if (emptySlotIndex !== -1) {
+                        const slotPos = _turretSlotPositions[emptySlotIndex];
+                        const slotSize = 40; // Hardcoded size from drawTurretSlot - MUST MATCH drawTurretSlot's size
+                        const halfSize = slotSize / 2;
+                        if (clickX >= slotPos.x - halfSize && clickX <= slotPos.x + halfSize &&
+                            clickY >= slotPos.y - halfSize && clickY <= slotPos.y + halfSize) {
+                            // If an empty slot is clicked, deselect any currently selected defender
+                            if (gameData.selectedDefenderId !== null) {
+                                gameData.selectedDefenderId = null;
+                                updateUI();
+                            }
+                        }
+                    }
+                }
+            });
+
+
+            // Recalculate canvas size and game element positions on window resize
+            window.addEventListener('resize', resizeCanvas);
+        }
+
+        /**
+         * Switches the active control panel tab (Turrets, Upgrades, or Research).
+         * @param {string} tabName - The name of the tab to activate ('turrets', 'upgrades', 'research').
+         */
+        function switchTab(tabName) {
+            tabTurretsBtn.classList.remove('active');
+            tabUpgradesBtn.classList.remove('active');
+            tabResearchBtn.classList.remove('active'); // New
+            turretsPanel.classList.remove('active');
+            upgradesPanel.classList.remove('active');
+            researchPanel.classList.remove('active'); // New
+
+            if (tabName === 'turrets') {
+                tabTurretsBtn.classList.add('active');
+                turretsPanel.classList.add('active');
+            } else if (tabName === 'upgrades') {
+                tabUpgradesBtn.classList.add('active');
+                upgradesPanel.classList.add('active');
+            } else if (tabName === 'research') { // New
+                tabResearchBtn.classList.add('active');
+                researchPanel.classList.add('active');
+            }
+            updateUI();
+        }
+
+        // --- Purchase and Upgrade Functions ---
+        /**
+         * Handles the purchase of a new defender of a specified type.
+         * Finds an empty slot, deducts resources, creates the defender object.
+         * @param {string} type - The type of defender to buy (e.g., 'BASIC', 'RAPID').
+         */
+        function buyDefender(type) {
+            const defenderType = DEFENDER_TYPES[type];
+            if (!defenderType) return;
+
+            // Check against the current total number of available slots
+            const currentTotalSlots = INITIAL_NUM_TURRET_SLOTS + (gameData.unlockedTurretSlotsLevel * RESEARCH_STATS.SLOT_UNLOCKS.slotsToAdd);
+            const emptySlotIndex = gameData.turretSlots.slice(0, currentTotalSlots).findIndex(slot => slot === null);
+
+            if (emptySlotIndex === -1) {
+                showMessage("No Empty Slots", "All available turret slots are occupied! Research more slots or sell existing turrets.");
+                return;
+            }
+
+            if (gameData.resources >= defenderType.cost) {
+                gameData.resources -= defenderType.cost;
+                const slotPosition = _turretSlotPositions[emptySlotIndex];
+
+                const newDefender = {
+                    id: gameData.nextDefenderId++,
+                    type: type,
+                    name: defenderType.name,
+                    level: 0,
+                    damage: defenderType.baseDamage, // Use base damage
+                    fireRate: defenderType.baseFireRate, // Use base fire rate
+                    range: defenderType.baseRange, // Use base range
+                    x: slotPosition.x,
+                    y: slotPosition.y,
+                    lastShotTime: Date.now(),
+                    slotIndex: emptySlotIndex,
+                    splashRadius: defenderType.splashRadius || 0,
+                    dotDamage: defenderType.dotDamage || 0,
+                    dotDuration: defenderType.dotDuration || 0,
+                    dotTickInterval: defenderType.dotTickInterval || 0
+                };
+
+                gameData.defenders.push(newDefender);
+                // Ensure turretSlots array is large enough for new slots
+                while (gameData.turretSlots.length < currentTotalSlots) {
+                    gameData.turretSlots.push(null);
+                }
+                gameData.turretSlots[emptySlotIndex] = newDefender.id;
+
+
+                showMessage("Defender Purchased!", `You bought a ${newDefender.name}.`);
+                updateUI();
+            } else {
+                showMessage("Insufficient Resources", `You need ${defenderType.cost - gameData.resources} more resources to buy a ${defenderType.name}.`);
+            }
+        }
+
+        /**
+         * Upgrades the currently selected defender to its next level.
+         * Deducts resources and updates the defender's stats.
+         */
+        function upgradeSelectedDefender() {
+            const selectedDefender = gameData.defenders.find(d => d.id === gameData.selectedDefenderId);
+            if (!selectedDefender) {
+                showMessage("No Defender Selected", "Please select a defender to upgrade.");
+                return;
+            }
+
+            const nextLevel = selectedDefender.level + 1;
+            const upgradeInfo = DEFENDER_TYPES[selectedDefender.type].upgrades[selectedDefender.level];
+
+            if (!upgradeInfo) {
+                showMessage("Max Level Reached", `${selectedDefender.name} is already at max level.`);
+                return;
+            }
+
+            if (gameData.resources >= upgradeInfo.cost) {
+                gameData.resources -= upgradeInfo.cost;
+                selectedDefender.level = nextLevel;
+                // Update base stats of the defender
+                selectedDefender.damage = upgradeInfo.damage;
+                selectedDefender.fireRate = upgradeInfo.fireRate;
+                selectedDefender.range = upgradeInfo.range;
+                if (upgradeInfo.splashRadius !== undefined) selectedDefender.splashRadius = upgradeInfo.splashRadius;
+                if (upgradeInfo.dotDamage !== undefined) selectedDefender.dotDamage = upgradeInfo.dotDamage;
+                if (upgradeInfo.dotDuration !== undefined) selectedDefender.dotDuration = upgradeInfo.dotDuration;
+                if (upgradeInfo.dotTickInterval !== undefined) selectedDefender.dotTickInterval = upgradeInfo.dotTickInterval;
+
+                selectedDefender.lastShotTime = Date.now();
+
+                showMessage("Upgrade Successful!", `${selectedDefender.name} upgraded to Level ${selectedDefender.level + 1}!`);
+                updateUI();
+            } else {
+                showMessage("Insufficient Resources", `You need ${upgradeInfo.cost - gameData.resources} more resources to upgrade ${selectedDefender.name}.`);
+            }
+        }
+
+        /**
+         * Sells the currently selected defender, refunds a percentage of its original cost,
+         * removes it from the game, and frees up its turret slot.
+         */
+        function sellSelectedDefender() {
+            const selectedDefenderIndex = gameData.defenders.findIndex(d => d.id === gameData.selectedDefenderId);
+            if (selectedDefenderIndex === -1) {
+                showMessage("No Defender Selected", "Please select a defender to sell.");
+                return;
+            }
+
+            const selectedDefender = gameData.defenders[selectedDefenderIndex];
+            const originalCost = DEFENDER_TYPES[selectedDefender.type].cost;
+            const refundAmount = Math.floor(originalCost * SELL_REFUND_PERCENTAGE);
+
+            gameData.turretSlots[selectedDefender.slotIndex] = null;
+
+            gameData.defenders.splice(selectedDefenderIndex, 1);
+
+            gameData.selectedDefenderId = null;
+
+            showMessage("Defender Sold!", `${selectedDefender.name} sold for ${refundAmount} resources.`);
+            updateUI();
+        }
+
+        /**
+         * Upgrades the Main Turret to the next type in its upgrade path.
+         * Handles initial build and subsequent type changes.
+         */
+        async function upgradeMainTurret() {
+            const currentLevel = gameData.mainTurret.level;
+            const nextLevel = currentLevel + 1;
+            const upgradeInfo = MAIN_TURRET_UPGRADE_PATH[nextLevel];
+
+            if (!upgradeInfo) {
+                showMessage("Max Level Reached", "Main Turret is already at its highest form!");
+                return;
+            }
+
+            if (gameData.resources >= upgradeInfo.cost) {
+                gameData.resources -= upgradeInfo.cost;
+
+                // Initialize/Update the SVG and get a reference to the rotating part
+                gameData.mainTurret.svgElement = _initializeMainTurretSVG(mainTurretElement, upgradeInfo.type);
+                gameData.mainTurret.imageUrl = getTurretSVGByType(upgradeInfo.type); // Store the SVG string
+
+                const newTypeStats = DEFENDER_TYPES[upgradeInfo.type];
+
+                gameData.mainTurret.level = nextLevel;
+                gameData.mainTurret.type = upgradeInfo.type;
+
+                // Apply multipliers from MAIN_TURRET_UPGRADE_PATH to base stats
+                gameData.mainTurret.damage = newTypeStats.baseDamage * (upgradeInfo.damageMultiplier || 1);
+                gameData.mainTurret.fireRate = newTypeStats.baseFireRate / (upgradeInfo.fireRateDivisor || 1);
+                gameData.mainTurret.range = upgradeInfo.range; // Use range directly from MAIN_TURRET_UPGRADE_PATH
+
+                gameData.mainTurret.splashRadius = newTypeStats.splashRadius || 0;
+                gameData.mainTurret.dotDamage = newTypeStats.dotDamage || 0;
+                gameData.mainTurret.dotDuration = newTypeStats.dotDuration || 0;
+                gameData.mainTurret.dotTickInterval = newTypeStats.dotTickInterval || 0;
+                gameData.mainTurret.lastShotTime = Date.now();
+                gameData.mainTurret.turnSpeed = upgradeInfo.turnSpeed; // Set new turn speed
+
+                _updateMainTurretVisuals(); // Update position and range indicator
+
+                showMessage("Main Turret Upgraded!", `Main Turret is now a ${newTypeStats.name} (Level ${nextLevel + 1})!`);
+                updateUI();
+            } else {
+                showMessage("Insufficient Resources", `You need ${upgradeInfo.cost - gameData.resources} more resources to ${currentLevel === -1 ? 'build' : 'upgrade'} the Main Turret.`);
+            }
+        }
+
+        /**
+         * Initializes or updates the Main Turret's SVG visual.
+         * This is called when the main turret is built or upgraded.
+         * @param {HTMLElement} mainTurretElement - The main turret's HTML container.
+         * @param {string} type - The type of the turret (e.g., 'SENTRY', 'BASIC', 'NONE').
+         * @returns {SVGElement|null} The reference to the rotating SVG group element.
+         */
+        function _initializeMainTurretSVG(mainTurretElement, type) {
+            const turretSVG = getTurretSVGByType(type);
+            mainTurretElement.innerHTML = turretSVG;
+            const svgGroup = mainTurretElement.querySelector('#turret-rotating-part');
+            if (svgGroup) {
+                // Ensure origin is set directly on the SVG element for CSS transforms
+                svgGroup.style.transformOrigin = '75px 120px';
+            }
+            return svgGroup;
+        }
+
+        /**
+         * Updates the visual state of the main turret, including its SVG container position.
+         * This is called during UI updates or on resize.
+         */
+        function _updateMainTurretVisuals() {
+            const { width, height } = getCanvasDimensions();
+            // Update main turret's logical position based on canvas size
+            gameData.mainTurret.x = (CORE_X_PERCENT / 100) * width;
+            gameData.mainTurret.y = (CORE_Y_PERCENT / 100) * height;
+
+            // Position the main turret HTML element (SVG container) so its rotation origin (75, 120) aligns
+            // with the logical (x, y) coordinates stored in gameData.mainTurret.
+            // The SVG's viewBox is 0 0 150 150. Its rotation origin is (75, 120) within that viewBox.
+            // So, to align the SVG's (75, 120) with gameData.mainTurret.x,y,
+            // the top-left of the SVG element should be at (gameData.mainTurret.x - 75, gameData.mainTurret.y - 120).
+            mainTurretElement.style.left = `${gameData.mainTurret.x - 75}px`;
+            mainTurretElement.style.top = `${gameData.mainTurret.y - 120}px`;
+        }
+
+        /**
+         * Upgrades the base defender's stats (damage, fire rate, range).
+         * Deducts resources and updates base defender properties.
+         */
+        function upgradeBaseDefender() {
+            const nextLevel = gameData.baseDefender.level + 1;
+            const upgradeInfo = BASE_DEFENDER_STATS.upgrades[gameData.baseDefender.level];
+
+            if (!upgradeInfo) {
+                showMessage("Max Level Reached", "Base Defender Attack is already at max level.");
+                return;
+            }
+            if (gameData.mainTurret.level === -1) {
+                showMessage("Main Turret Required", "You must build the Main Turret before upgrading base stats.");
+                return;
+            }
+
+            if (gameData.resources >= upgradeInfo.cost) {
+                gameData.resources -= upgradeInfo.cost;
+                gameData.baseDefender.level = nextLevel;
+                // Update base stats of the base defender
+                gameData.baseDefender.damage = upgradeInfo.damage;
+                gameData.baseDefender.fireRate = upgradeInfo.fireRate;
+                gameData.baseDefender.range = upgradeInfo.range;
+                showMessage("Upgrade Successful!", `Base Defender Attack upgraded to Level ${gameData.baseDefender.level + 1}!`);
+                updateUI();
+            } else {
+                showMessage("Insufficient Resources", `You need ${upgradeInfo.cost - gameData.resources} more resources to upgrade Base Defender Attack.`);
+            }
+        }
+
+        /**
+         * Upgrades the base's maximum health.
+         * Deducts resources and increases max health, and current health proportionally.
+         */
+        function upgradeBaseHealth() {
+            const nextLevel = gameData.baseHealthLevel + 1;
+            const upgradeInfo = BASE_HEALTH_UPGRADE_STATS.upgrades[gameData.baseHealthLevel];
+
+            if (!upgradeInfo) {
+                showMessage("Max Level Reached", "Base Health is already at max level.");
+                return;
+            }
+            if (gameData.mainTurret.level === -1) {
+                showMessage("Main Turret Required", "You must build the Main Turret before upgrading base stats.");
+                return;
+            }
+
+            if (gameData.resources >= upgradeInfo.cost) {
+                gameData.resources -= upgradeInfo.cost;
+                gameData.baseHealthLevel = nextLevel;
+
+                // Increase baseMaxHealth from BASE_HEALTH_UPGRADE_STATS
+                gameData.maxBaseHealth = BASE_HEALTH_UPGRADE_STATS.baseMaxHealth; // Reset to initial base
+                for(let i = 0; i < gameData.baseHealthLevel; i++) {
+                    gameData.maxBaseHealth += BASE_HEALTH_UPGRADE_STATS.upgrades[i].healthIncrease;
+                }
+
+                // Apply artifact health bonus to the actual max health
+                const effectiveMaxBaseHealth = gameData.maxBaseHealth * gameData.artifactHealthBonus;
+                gameData.baseHealth = Math.min(effectiveMaxBaseHealth, gameData.baseHealth); // Cap current health at new max
+
+
+                showMessage("Upgrade Successful!", `Base Health upgraded to Level ${gameData.baseHealthLevel + 1}! Max Health: ${Math.floor(effectiveMaxBaseHealth)}`);
+                updateUI();
+            } else {
+                showMessage("Insufficient Resources", `You need ${upgradeInfo.cost - gameData.resources} more resources to upgrade Base Health.`);
+            }
+        }
+
+        /**
+         * Upgrades the base's health regeneration rate.
+         * Deducts resources and increases the regeneration rate.
+         */
+        function upgradeBaseRegen() {
+            const nextLevel = gameData.baseRegenLevel + 1;
+            const upgradeInfo = BASE_HEALTH_REGEN_STATS.upgrades[gameData.baseRegenLevel];
+
+            if (!upgradeInfo) {
+                showMessage("Max Level Reached", "Base Health Regeneration is already at max level.");
+                return;
+            }
+            if (gameData.mainTurret.level === -1) {
+                showMessage("Main Turret Required", "You must build the Main Turret before upgrading base stats.");
+                return;
+            }
+
+            if (gameData.resources >= upgradeInfo.cost) {
+                gameData.resources -= upgradeInfo.cost;
+                gameData.baseRegenLevel = nextLevel;
+                gameData.baseRegenRate = upgradeInfo.regenRate;
+
+                showMessage("Upgrade Successful!", `Base Regeneration upgraded to Level ${gameData.baseRegenLevel + 1}! Regen Rate: ${gameData.baseRegenRate.toFixed(1)}/s`);
+                updateUI();
+            } else {
+                showMessage("Insufficient Resources", `You need ${upgradeInfo.cost - gameData.resources} more resources to upgrade Base Regeneration.`);
+            }
+        }
+
+        /**
+         * Upgrades the resource multiplier, increasing resource gain.
+         * Deducts resources and updates the multiplier value.
+         */
+        function upgradeResourceMultiplier() {
+            const nextLevel = gameData.resourceMultiplierLevel + 1;
+            const upgradeInfo = RESOURCE_MULTIPLIER_STATS.upgrades[gameData.resourceMultiplierLevel];
+
+            if (!upgradeInfo) {
+                showMessage("Max Level Reached", "Resource Multiplier is already at max level.");
+                return;
+            }
+            if (gameData.mainTurret.level === -1) {
+                showMessage("Main Turret Required", "You must build the Main Turret before upgrading base stats.");
+                return;
+            }
+
+            if (gameData.resources >= upgradeInfo.cost) {
+                gameData.resources -= upgradeInfo.cost;
+                gameData.resourceMultiplierLevel = nextLevel;
+                gameData.resourceMultiplier = upgradeInfo.multiplier;
+                showMessage("Upgrade Successful!", `Resource Multiplier boosted to x${gameData.resourceMultiplier.toFixed(1)}!`);
+                updateUI();
+            } else {
+                showMessage("Insufficient Resources", `You need ${upgradeInfo.cost - gameData.resources} more resources to boost the multiplier.`);
+            }
+        }
+
+        /**
+         * Handles unlocking more turret slots through research.
+         */
+        function unlockTurretSlots() {
+            const nextLevel = gameData.unlockedTurretSlotsLevel + 1;
+            const upgradeInfo = RESEARCH_STATS.SLOT_UNLOCKS; // No individual upgrade objects, just a fixed cost/effect
+
+            if (nextLevel > upgradeInfo.maxLevel) {
+                showMessage("Max Level Reached", "All possible turret slots are already unlocked.");
+                return;
+            }
+
+            if (gameData.researchPoints >= upgradeInfo.cost) {
+                gameData.researchPoints -= upgradeInfo.cost;
+                gameData.unlockedTurretSlotsLevel = nextLevel;
+
+                // Dynamically expand turretSlots array
+                const newTotalSlots = INITIAL_NUM_TURRET_SLOTS + (gameData.unlockedTurretSlotsLevel * upgradeInfo.slotsToAdd);
+                while (gameData.turretSlots.length < newTotalSlots) {
+                    gameData.turretSlots.push(null);
+                }
+
+                // Recalculate slot positions to reflect the new number of slots
+                calculateTurretSlotPositions();
+
+                showMessage("Slots Unlocked!", `You unlocked ${upgradeInfo.slotsToAdd} more turret slots! Total: ${newTotalSlots}`);
+                updateUI();
+            } else {
+                showMessage("Insufficient Research Points", `You need ${upgradeInfo.cost - gameData.researchPoints} more Research Points to unlock more slots.`);
+            }
+        }
+
+        /**
+         * Upgrades the research point drop chance.
+         */
+        function upgradeResearchPointDropChance() {
+            const nextLevel = gameData.researchPointDropChanceLevel + 1;
+            const upgradeStats = RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE;
+
+            if (nextLevel > upgradeStats.maxLevel) {
+                showMessage("Max Level Reached", "Research Point Drop Chance is already at max level.");
+                return;
+            }
+
+            const currentCost = upgradeStats.baseCost * (upgradeStats.costMultiplier ** gameData.researchPointDropChanceLevel);
+
+            if (gameData.researchPoints >= currentCost) {
+                gameData.researchPoints -= currentCost;
+                gameData.researchPointDropChanceLevel = nextLevel;
+                showMessage("Upgrade Successful!", `Research Point Drop Chance upgraded to Level ${nextLevel}!`);
+                updateUI();
+            } else {
+                showMessage("Insufficient Research Points", `You need ${Math.ceil(currentCost - gameData.researchPoints)} more Research Points for this upgrade.`);
+            }
+        }
+
+        /**
+         * Handles researching an artifact.
+         * @param {string} artifactKey - The key of the artifact to research (e.g., 'DAMAGE_ARTIFACT').
+         */
+        function researchArtifact(artifactKey) {
+            const artifact = RESEARCH_STATS.ARTIFACTS[artifactKey]; // Corrected: Use RESEARCH_STATS.ARTIFACTS
+            if (!artifact) return;
+
+            const currentLevel = gameData[artifact.levelKey];
+            const currentCost = artifact.baseCost * (artifact.costMultiplier ** currentLevel);
+
+            if (gameData.resources >= currentCost) {
+                gameData.resources -= currentCost;
+                gameData[artifact.levelKey]++; // Increment artifact level
+
+                // Recalculate global bonuses based on new artifact levels
+                gameData.artifactDamageBonus = (RESEARCH_STATS.ARTIFACTS.DAMAGE_ARTIFACT.effectMultiplier ** gameData.damageArtifactLevel);
+                gameData.artifactHealthBonus = (RESEARCH_STATS.ARTIFACTS.HEALTH_ARTIFACT.effectMultiplier ** gameData.healthArtifactLevel);
+                gameData.artifactFireRateBonus = (RESEARCH_STATS.ARTIFACTS.FIRE_RATE_ARTIFACT.effectMultiplier ** gameData.fireRateArtifactLevel);
+
+                // Update base health to reflect new max health
+                const effectiveMaxBaseHealth = INITIAL_GAME_DATA.maxBaseHealth * gameData.artifactHealthBonus;
+                gameData.baseHealth = Math.min(effectiveMaxBaseHealth, gameData.baseHealth); // Cap current health at new max
+
+                showMessage("Artifact Unlocked!", `${artifact.name} purchased! Level: ${gameData[artifact.levelKey]}`);
+                updateUI();
+            } else {
+                showMessage("Insufficient Resources", `You need ${Math.ceil(currentCost - gameData.resources)} more Resources to purchase ${artifact.name}.`);
+            }
+        }
+
+
+        // --- Save/Load Game ---
+        /**
+         * Saves the current game state to local storage.
+         * Removes DOM element references before saving to prevent circular references.
+         */
+        function saveGame() {
+            try {
+                const dataToSave = {
+                    ...gameData,
+                    // Remove transient properties that are not part of the core game state
+                    enemies: [], // Enemies are transient
+                    projectiles: [], // Projectiles are transient
+                    explosions: [], // Explosions are transient
+                    // Explicitly save mainTurret without its element and svgElement
+                    mainTurret: gameData.mainTurret ? (() => {
+                        const { element, svgElement, ...rest } = gameData.mainTurret;
+                        return rest;
+                    })() : null
+                };
+                localStorage.setItem('defenderTycoonSave', JSON.stringify(dataToSave));
+                showMessage("Game Saved!", "Your progress has been saved.");
+            }
+            catch (e) {
+                showMessage("Save Error", "Could not save game. Your browser might not support local storage or it's full.");
+                console.error("Save game error:", e);
+            }
+        }
+
+        /**
+         * Loads a previously saved game state from local storage.
+         * Clears current game elements and recreates them based on loaded data.
+         * Re-links DOM elements to loaded objects.
+         */
+        async function loadGame() {
+            try {
+                const savedData = localStorage.getItem('defenderTycoonSave');
+                if (savedData) {
+                    const loadedData = JSON.parse(savedData);
+
+                    // Stop current game loop if running
+                    clearInterval(gameLoopId);
+
+                    // Re-initialize gameData with loaded data, ensuring defaults for new properties
+                    gameData = {
+                        ...gameData, // Keep initial gameData structure
+                        ...loadedData, // Overwrite with loaded data
+                        // Ensure transient arrays are reset
+                        enemies: [],
+                        projectiles: [],
+                        explosions: [],
+                        // Ensure baseDefender is re-initialized with element reference
+                        baseDefender: {
+                            ...BASE_DEFENDER_STATS, // Start with base stats
+                            ...loadedData.baseDefender, // Overwrite with loaded base defender stats
+                            lastShotTime: Date.now() // Reset last shot time to prevent immediate firing on load
+                        },
+                        // Re-link mainTurret element and ensure proper positioning
+                        mainTurret: loadedData.mainTurret ? {
+                            ...loadedData.mainTurret,
+                            element: mainTurretElement, // Re-link to the DOM element
+                            svgElement: null, // Will be set after innerHTML is updated
+                            // Recalculate x/y based on current core position
+                            x: (CORE_X_PERCENT / 100) * gameCanvas.width,
+                            y: (CORE_Y_PERCENT / 100) * gameCanvas.height,
+                            splashRadius: loadedData.mainTurret.splashRadius || 0,
+                            dotDamage: loadedData.mainTurret.dotDamage || 0,
+                            dotDuration: loadedData.mainTurret.dotDuration || 0,
+                            dotTickInterval: loadedData.mainTurret.dotTickInterval || 0,
+                            imageUrl: loadedData.mainTurret.imageUrl || '', // Load the SVG string
+                            currentAngle: loadedData.mainTurret.currentAngle || 0, // Load current angle
+                            turnSpeed: loadedData.mainTurret.turnSpeed || (Math.PI * 0.5) // Load turn speed or default
+                        } : {
+                            id: 'main-turret-0', type: 'NONE', name: 'CORE TURRET', level: -1, damage: 0, fireRate: 0, range: 0, lastShotTime: 0, element: mainTurretElement,
+                            svgElement: null,
+                            x: (CORE_X_PERCENT / 100) * gameCanvas.width, y: (CORE_Y_PERCENT / 100) * gameCanvas.height,
+                            splashRadius: 0, dotDamage: 0, dotDuration: 0, dotTickInterval: 0, imageUrl: '', currentAngle: 0, turnSpeed: Math.PI * 0.5
+                        },
+                        // Ensure new artifact properties are loaded or defaulted
+                        damageArtifactLevel: loadedData.damageArtifactLevel || 0,
+                        healthArtifactLevel: loadedData.healthArtifactLevel || 0,
+                        fireRateArtifactLevel: loadedData.fireRateArtifactLevel || 0,
+                        artifactDamageBonus: loadedData.artifactDamageBonus || 1.0,
+                        artifactHealthBonus: loadedData.artifactHealthBonus || 1.0,
+                        artifactFireRateBonus: loadedData.artifactFireRateBonus || 1.0,
+                        researchPointDropChanceLevel: loadedData.researchPointDropChanceLevel || 0,
+                        unlockedTurretSlotsLevel: loadedData.unlockedTurretSlotsLevel || 0,
+                        gameSpeedMultiplier: loadedData.gameSpeedMultiplier || 1, // Load game speed
+                    };
+
+                    // Ensure turretSlots array is correctly sized for loaded unlocked slots
+                    const totalSlotsAfterLoad = INITIAL_NUM_TURRET_SLOTS + (gameData.unlockedTurretSlotsLevel * RESEARCH_STATS.SLOT_UNLOCKS.slotsToAdd);
+                    while (gameData.turretSlots.length < totalSlotsAfterLoad) {
+                        gameData.turretSlots.push(null);
+                    }
+                    // If the loaded array is larger than what's currently defined by research, trim it
+                    if (gameData.turretSlots.length > totalSlotsAfterLoad) {
+                        gameData.turretSlots = gameData.turretSlots.slice(0, totalSlotsAfterLoad);
+                    }
+
+
+                    // Recalculate turret slot positions based on current canvas size
+                    calculateTurretSlotPositions();
+
+                    // Update main turret visual based on loaded state
+                    if (gameData.mainTurret.level !== -1) {
+                        // Use the saved SVG string or generate a new one if not saved
+                        const turretSVGToUse = gameData.mainTurret.imageUrl || getTurretSVGByType(gameData.mainTurret.type);
+                        mainTurretElement.innerHTML = turretSVGToUse;
+                        // Get reference to the SVG *group* after it's been added to the DOM
+                        gameData.mainTurret.svgElement = mainTurretElement.querySelector('#turret-rotating-part');
+                        // IMPORTANT: Explicitly set transform-origin for CSS transforms
+                        if (gameData.mainTurret.svgElement) {
+                            gameData.mainTurret.svgElement.style.transformOrigin = '75px 120px';
+                            // Apply the loaded currentAngle
+                            gameData.mainTurret.svgElement.style.transform = `rotate(${gameData.mainTurret.currentAngle}rad)`;
+                        }
+                    } else {
+                        // If main turret was not built, revert to the "NONE" SVG
+                        gameData.mainTurret.svgElement = _initializeMainTurretSVG(mainTurretElement, 'NONE');
+                    }
+
+                    _updateMainTurretVisuals(); // Update DOM position of SVG container
+
+                    // Reset game state flags
+                    gameData.gameRunning = false;
+                    gameData.isWaveActive = false;
+                    gameData.gameOver = false;
+                    gameData.lastUpdateTime = Date.now();
+
+                    // Re-select defender if one was selected
+                    if (gameData.selectedDefenderId !== null) {
+                        // No DOM element to add 'selected' class to for canvas-drawn defenders
+                        // The drawDefender function will handle drawing the selection outline
+                    }
+
+                    showMessage("Game Loaded!", "Your previous game has been loaded.");
+                    updateUI();
+                    startGameLoop(); // Restart the game loop
+                } else {
+                    showMessage("No Saved Game", "No saved game found.");
+                }
+            } catch (e) {
+                showMessage("Load Error", "Could not load game. The save data might be corrupted.");
+                console.error("Load game error:", e);
+            }
+        }
+
+        /**
+         * Resets the game to its initial state.
+         */
+        function restartGame() {
+            clearInterval(gameLoopId); // Stop the current game loop
+            gameData = JSON.parse(JSON.stringify(INITIAL_GAME_DATA)); // Reset gameData to initial state
+            // Re-link DOM elements and re-initialize visuals that are not part of the JSON data
+            gameData.mainTurret.element = mainTurretElement;
+            gameData.mainTurret.svgElement = _initializeMainTurretSVG(mainTurretElement, 'NONE'); // Reset main turret visual
+            hideMessage(); // Close any open messages
+            resizeCanvas(); // Recalculate canvas and element positions
+            updateUI(); // Update all UI elements
+            startGameLoop(); // Start a new game loop
+            showMessage("Game Restarted!", "The game has been reset to its initial state.");
+        }
+
+        // --- Initial Call ---
+        window.onload = initGame;
+    </script>
+</body>
+</html>
