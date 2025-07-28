@@ -349,6 +349,18 @@
                     <button id="buy-poison-arrow-defender-btn">Poison Arrow (<span class="cost">700</span> R)</button>
                     <button id="buy-rocket-launcher-defender-btn">Rocket Launcher (<span class="cost">800</span> R)</button>
                 </div>
+
+                <!-- Main Turret section moved here -->
+                <h2>Main Turret</h2>
+                <div class="section-box">
+                    <p>Type: <span id="main-turret-type-display">None</span></p>
+                    <p>Level: <span id="main-turret-level-display">0</span></p>
+                    <p>Damage: <span id="main-turret-dmg-display">N/A</span></p>
+                    <p>Speed (RPS): <span id="main-turret-spd-display">N/A</span></p>
+                    <p>Range: <span id="main-turret-range-display">N/A</span></p>
+                    <div>Upgrade Cost: <span id="main-turret-cost-display">N/A</span></div>
+                    <button id="upgrade-main-turret-btn">Build Main Turret</button>
+                </div>
             </div>
 
             <div id="upgrades-panel" class="tab-content">
@@ -360,18 +372,35 @@
                     <div>Sell Value: <span id="sell-value-display">N/A</span></div>
                     <button id="sell-defender-btn" disabled>Sell Defender</button>
                 </div>
+            </div>
 
-                <h2>Main Turret</h2>
+            <div id="research-panel" class="tab-content">
+                <h2>Research</h2>
                 <div class="section-box">
-                    <p>Type: <span id="main-turret-type-display">None</span></p>
-                    <p>Level: <span id="main-turret-level-display">0</span></p>
-                    <p>Damage: <span id="main-turret-dmg-display">N/A</span></p>
-                    <p>Speed (RPS): <span id="main-turret-spd-display">N/A</span></p>
-                    <p>Range: <span id="main-turret-range-display">N/A</span></p>
-                    <div>Upgrade Cost: <span id="main-turret-cost-display">N/A</span></div>
-                    <button id="upgrade-main-turret-btn">Build Main Turret</button>
+                    <h3>Unlock Turret Slots</h3>
+                    <p>Current Slots: <span id="current-slots-display">10</span></p>
+                    <div>Cost: <span id="unlock-slots-cost-display">N/A</span> (<span id="unlock-slots-level-display">Lvl N/A</span>)</div>
+                    <button id="unlock-slots-btn">Unlock More Slots</button>
                 </div>
 
+                <div class="section-box">
+                    <h3>Research Point Drop Chance</h3>
+                    <p>Current Chance: 1 in <span id="rp-drop-chance-display">1000</span></p>
+                    <div class="progress-bar-container"><div id="rp-drop-chance-progress" class="progress-bar-fill"></div></div>
+                    <div>Cost: <span id="rp-drop-cost-display">N/A</span> (<span id="rp-drop-level-display">Lvl N/A</span>)</div>
+                    <button id="upgrade-rp-drop-chance-btn">Upgrade Drop Chance</button>
+                </div>
+
+                <div class="section-box">
+                    <h3>Artifacts</h3>
+                    <div class="button-group">
+                        <button id="research-damage-artifact-btn">Damage Artifact (<span id="damage-artifact-cost">10000</span> R)</button>
+                        <button id="research-health-artifact-btn">Health Artifact (<span id="health-artifact-cost">10000</span> R)</button>
+                        <button id="research-fire-rate-artifact-btn">Fire Rate Artifact (<span id="fire-rate-artifact-cost">10000</span> R)</button>
+                    </div>
+                </div>
+
+                <!-- Base Upgrades section moved here -->
                 <h2>Base Upgrades</h2>
                 <div class="section-box">
                     <h3>Base Defender Attack</h3>
@@ -403,33 +432,6 @@
                     <div class="progress-bar-container"><div id="multiplier-progress" class="progress-bar-fill"></div></div>
                     <div>Upgrade Cost: <span id="multiplier-cost-display">N/A</span> (<span id="multiplier-level-display">Lvl N/A</span>)</div>
                     <button id="upgrade-resource-multiplier-btn">Upgrade Multiplier</button>
-                </div>
-            </div>
-
-            <div id="research-panel" class="tab-content">
-                <h2>Research</h2>
-                <div class="section-box">
-                    <h3>Unlock Turret Slots</h3>
-                    <p>Current Slots: <span id="current-slots-display">10</span></p>
-                    <div>Cost: <span id="unlock-slots-cost-display">N/A</span> (<span id="unlock-slots-level-display">Lvl N/A</span>)</div>
-                    <button id="unlock-slots-btn">Unlock More Slots</button>
-                </div>
-
-                <div class="section-box">
-                    <h3>Research Point Drop Chance</h3>
-                    <p>Current Chance: 1 in <span id="rp-drop-chance-display">1000</span></p>
-                    <div class="progress-bar-container"><div id="rp-drop-chance-progress" class="progress-bar-fill"></div></div>
-                    <div>Cost: <span id="rp-drop-cost-display">N/A</span> (<span id="rp-drop-level-display">Lvl N/A</span>)</div>
-                    <button id="upgrade-rp-drop-chance-btn">Upgrade Drop Chance</button>
-                </div>
-
-                <div class="section-box">
-                    <h3>Artifacts</h3>
-                    <div class="button-group">
-                        <button id="research-damage-artifact-btn">Damage Artifact (<span id="damage-artifact-cost">10000</span> R)</button>
-                        <button id="research-health-artifact-btn">Health Artifact (<span id="health-artifact-cost">10000</span> R)</button>
-                        <button id="research-fire-rate-artifact-btn">Fire Rate Artifact (<span id="fire-rate-artifact-cost">10000</span> R)</button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -1054,6 +1056,7 @@
             };
 
             gameData.enemies.push(enemy);
+            console.log(`[Spawn] Spawned enemy: ${enemy.type} (ID: ${enemy.id}) at (${enemy.x.toFixed(0)}, ${enemy.y.toFixed(0)})`);
         }
 
         /**
@@ -1549,6 +1552,7 @@
             gameData.enemies = [];
             gameData.projectiles = [];
             gameData.explosions = [];
+            console.log("[Game Over] Game Over state activated.");
         }
 
         /**
@@ -1556,12 +1560,15 @@
          * Increments wave number and sets up enemy spawning.
          */
         function startWave() {
+            console.log("[startWave] Function called.");
             if (gameData.isWaveActive) {
                 showMessage("Wave in Progress", "A wave is already active! Wait for it to finish or be defeated.");
+                console.log("[startWave] Wave already active. Aborting.");
                 return;
             }
             if (gameData.gameOver) {
                 showMessage("Game Over", "The game is over! Start a new game to play again.");
+                console.log("[startWave] Game is over. Aborting.");
                 return;
             }
 
@@ -1572,7 +1579,7 @@
             gameData.waveSpawnTimer = 0;
             startNextWaveBtn.disabled = true;
 
-            console.log(`Starting Wave ${gameData.wave}. Enemies to spawn: ${gameData.waveEnemiesRemaining}`);
+            console.log(`[startWave] Starting Wave ${gameData.wave}. Enemies to spawn: ${gameData.waveEnemiesRemaining}. isWaveActive: ${gameData.isWaveActive}`);
             showMessage("Wave Incoming!", `Wave ${gameData.wave} is starting!`);
             updateUI();
         }
@@ -1583,13 +1590,13 @@
          */
         function checkWaveEnd() {
             if (gameData.isWaveActive && gameData.waveEnemiesRemaining <= 0 && gameData.enemies.length === 0) {
-                console.log("Wave end condition met!");
+                console.log("[checkWaveEnd] Wave end condition met! All enemies spawned and defeated.");
                 gameData.isWaveActive = false;
                 startNextWaveBtn.disabled = false;
                 _gainResearchPoints(gameData.wave * 5); // Gain research points per wave cleared
                 showMessage("Wave Cleared!", `You successfully defended Wave ${gameData.wave}! You gained ${gameData.wave * 5} Research Points!`);
             } else {
-                // console.log(`Wave check: Active=${gameData.isWaveActive}, Spawned=${gameData.waveEnemiesRemaining <= 0}, Enemies on screen=${gameData.enemies.length}`);
+                // console.log(`[checkWaveEnd] Wave check: Active=${gameData.isWaveActive}, SpawnedRemaining=${gameData.waveEnemiesRemaining}, EnemiesOnScreen=${gameData.enemies.length}`);
             }
         }
 
@@ -1612,6 +1619,7 @@
             gameData.gameRunning = true;
             gameData.lastUpdateTime = Date.now();
             gameLoopId = setInterval(gameTick, GAME_LOOP_INTERVAL);
+            console.log("[Game Loop] Game loop started.");
         }
 
         /**
@@ -1623,6 +1631,7 @@
             if (gameData.gameOver) {
                 clearInterval(gameLoopId);
                 gameData.gameRunning = false;
+                console.log("[Game Loop] Game Over. Game loop stopped.");
                 return;
             }
 
@@ -1644,12 +1653,18 @@
             // Spawn enemies if wave is active and enemies are remaining
             if (gameData.isWaveActive && gameData.waveEnemiesRemaining > 0) {
                 gameData.waveSpawnTimer += deltaTime;
+                console.log(`[Game Tick] Wave active. Enemies Remaining to Spawn: ${gameData.waveEnemiesRemaining}, Current Spawn Timer: ${gameData.waveSpawnTimer.toFixed(0)}/${ENEMY_SPAWN_INTERVAL}`);
                 if (gameData.waveSpawnTimer >= ENEMY_SPAWN_INTERVAL) {
                     spawnEnemy();
                     gameData.waveEnemiesRemaining--;
                     gameData.waveSpawnTimer = 0;
                 }
+            } else if (gameData.isWaveActive && gameData.waveEnemiesRemaining <= 0 && gameData.enemies.length === 0) {
+                // This condition is for when all enemies have been spawned and defeated
+                // and the wave should end.
+                console.log("[Game Tick] All enemies spawned and defeated. Checking wave end.");
             }
+
 
             // Update all active game elements
             gameData.enemies.forEach(enemy => updateEnemyPosition(enemy, deltaTime));
@@ -1669,8 +1684,10 @@
          * @param {number} multiplier - The desired speed multiplier (e.g., 2, 5, 10).
          */
         function setGameSpeed(multiplier) {
-            gameData.gameSpeedMultiplier = multiplier;
+            console.log(`[setGameSpeed] Setting game speed to ${multiplier}x`);
             clearInterval(gameLoopId); // Stop current loop
+            gameData.gameRunning = false; // Force startGameLoop to create a new interval
+            gameData.gameSpeedMultiplier = multiplier;
             startGameLoop(); // Start new loop with updated speed
             updateUI(); // Update UI to reflect speed change
         }
@@ -1971,13 +1988,14 @@
 
             // Apply artifact health bonus to max base health for display
             const effectiveMaxBaseHealth = INITIAL_GAME_DATA.maxBaseHealth * gameData.artifactHealthBonus;
+            gameData.maxBaseHealth = effectiveMaxBaseHealth; // Update gameData's maxBaseHealth to reflect artifact bonus
             baseHealthDisplay.textContent = Math.floor(Math.max(0, gameData.baseHealth));
             baseMaxHealthDisplayHeader.textContent = Math.floor(effectiveMaxBaseHealth); // Update header max health
             waveNumberDisplay.textContent = gameData.wave;
 
             // Calculate and update Total DPS
             let totalDPS = 0;
-            // Base defender only contributes DPS if main turret is NOT built
+            // Base defender only contributes DPS if main turret IS NOT built
             if (gameData.baseDefender && gameData.baseDefender.fireRate > 0 && gameData.mainTurret.level === -1) {
                 totalDPS += (gameData.baseDefender.damage * gameData.artifactDamageBonus / (gameData.baseDefender.fireRate / gameData.artifactFireRateBonus)) * 1000;
             }
@@ -2185,7 +2203,10 @@
             const nextRPDropLevel = gameData.researchPointDropChanceLevel + 1;
             const rpDropNextCost = RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.baseCost * (RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.costMultiplier ** gameData.researchPointDropChanceLevel);
 
-            if (nextRPDropLevel <= RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.maxLevel) {
+            // Fix: Define upgradeStats for this scope
+            const rpDropUpgradeStats = RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE;
+
+            if (nextRPDropLevel <= rpDropUpgradeStats.maxLevel) { // Corrected from RESEARCH_STATS.RESEARCH_POINT_DROP_CHANCE.maxLevel
                 rpDropCostDisplay.textContent = Math.ceil(rpDropNextCost);
                 rpDropLevelDisplay.textContent = `Lvl ${nextRPDropLevel}`;
                 upgradeRpDropChanceBtn.disabled = gameData.researchPoints < rpDropNextCost;
@@ -2201,7 +2222,7 @@
             for (const artifactKey in RESEARCH_STATS.ARTIFACTS) {
                 const artifact = RESEARCH_STATS.ARTIFACTS[artifactKey];
                 const currentLevel = gameData[artifact.levelKey];
-                const artifactButton = document.getElementById(`research-${artifactKey}-btn`);
+                const artifactButton = document.getElementById(`research-${artifactKey.toLowerCase().replace('_artifact', '-artifact')}-btn`); // Corrected ID format
                 const artifactCostDisplay = document.getElementById(`${artifact.levelKey.replace('Level', 'Cost')}`);
 
                 const currentCost = artifact.baseCost * (artifact.costMultiplier ** currentLevel);
@@ -2220,7 +2241,11 @@
 
 
             // Update "Start Next Wave" button state
+            // It should be disabled if a wave is active OR if the game is over.
+            // It should be enabled if no wave is active AND the game is not over.
             startNextWaveBtn.disabled = gameData.isWaveActive || gameData.gameOver;
+            console.log(`[updateUI] Start Next Wave button disabled: ${startNextWaveBtn.disabled} (isWaveActive: ${gameData.isWaveActive}, gameOver: ${gameData.gameOver})`);
+
 
             // Update speed button active states
             speed2xBtn.classList.toggle('active', gameData.gameSpeedMultiplier === 2);
@@ -2900,7 +2925,7 @@
          * @param {string} artifactKey - The key of the artifact to research (e.g., 'DAMAGE_ARTIFACT').
          */
         function researchArtifact(artifactKey) {
-            const artifact = RESEARCH_STATS.ARTIFACTS[artifactKey]; // Corrected: Use RESEARCH_STATS.ARTIFACTS
+            const artifact = RESEARCH_STATS.ARTIFACTS[artifactKey];
             if (!artifact) return;
 
             const currentLevel = gameData[artifact.levelKey];
@@ -2918,6 +2943,7 @@
                 // Update base health to reflect new max health
                 const effectiveMaxBaseHealth = INITIAL_GAME_DATA.maxBaseHealth * gameData.artifactHealthBonus;
                 gameData.baseHealth = Math.min(effectiveMaxBaseHealth, gameData.baseHealth); // Cap current health at new max
+
 
                 showMessage("Artifact Unlocked!", `${artifact.name} purchased! Level: ${gameData[artifact.levelKey]}`);
                 updateUI();
@@ -3088,6 +3114,7 @@
             updateUI(); // Update all UI elements
             startGameLoop(); // Start a new game loop
             showMessage("Game Restarted!", "The game has been reset to its initial state.");
+            console.log("[Restart] Game has been reset and restarted.");
         }
 
         // --- Initial Call ---
