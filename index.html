@@ -1594,7 +1594,7 @@
                 gameData.isWaveActive = false;
                 startNextWaveBtn.disabled = false;
                 _gainResearchPoints(gameData.wave * 5); // Gain research points per wave cleared
-                showMessage("Wave Cleared!", `You successfully defended Wave ${gameData.wave}! You gained ${gameData.wave * 5} Research Points!`);
+                showMessage("Wave Cleared!", `You successfully defended Wave ${gameData.wave}!`); // Modified message
             } else {
                 // console.log(`[checkWaveEnd] Wave check: Active=${gameData.isWaveActive}, SpawnedRemaining=${gameData.waveEnemiesRemaining}, EnemiesOnScreen=${gameData.enemies.length}`);
             }
